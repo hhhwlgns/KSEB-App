@@ -1,23 +1,45 @@
 {
-  "name": "kseb-mobile",
+  "name": "a0-project",
   "version": "1.0.0",
+  "license": "0BSD",
+  "private": true,
   "main": "index.ts",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "start": "npx expo start",
+    "android": "npx expo run:android",
+    "ios": "npx expo run:ios",
+    "web": "npx expo start --web"
   },
   "dependencies": {
-    "expo": "~53.0.17",
-    "expo-status-bar": "~2.2.3",
+    "@clerk/clerk-expo": "^1.0.0-beta.31",
+    "@expo/vector-icons": "^14.1.0",
+    "@react-native-async-storage/async-storage": "2.1.2",
+    "@react-native-community/slider": "4.5.6",
+    "@react-navigation/bottom-tabs": "7.4.2",
+    "@react-navigation/native": "7.1.14",
+    "@react-navigation/native-stack": "7.3.21",
+    "@supabase/supabase-js": "2.50.5",
+    "@tanstack/react-query": "^5.83.0",
+    "axios": "^1.11.0",
+    "expo": "~53.0.0",
+    "expo-camera": "~16.1.10",
+    "expo-linear-gradient": "~14.1.5",
+    "lucide-react-native": "0.525.0",
     "react": "19.0.0",
-    "react-native": "0.79.5"
+    "react-dom": "19.0.0",
+    "react-native": "0.79.5",
+    "react-native-gesture-handler": "~2.24.0",
+    "react-native-reanimated": "~3.17.4",
+    "react-native-safe-area-context": "5.4.0",
+    "react-native-screens": "~4.11.1",
+    "react-native-svg": "15.11.2",
+    "react-native-web": "^0.20.0",
+    "sonner-native": "0.21.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.25.2",
-    "@types/react": "~19.0.10",
-    "typescript": "~5.8.3"
-  },
-  "private": true
+    "@babel/core": "^7.20.0",
+    "@types/react": "~18.2.14",
+    "babel-plugin-module-resolver": "^5.0.2",
+    "typescript": "^5.1.3"
+  }
 }
