@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { useQuery } from '@tanstack/react-query';
 import Header from '../components/Header';
 import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
+import CollapsibleSection from '../components/CollapsibleSection';
 import { COLORS, SIZES } from '../constants';
 import { WarehouseItem } from '../types';
 import { getWarehouseCurrent } from '../lib/api';
@@ -24,7 +25,6 @@ const FILTER_OPTIONS = [
   { label: '전체', value: 'all' },
   { label: '진행중', value: 'in_progress' },
   { label: '예약', value: 'pending' },
-  { label: '완료', value: 'completed' },
 ];
 
 export default function WarehouseCurrentScreen() {
@@ -39,9 +39,27 @@ export default function WarehouseCurrentScreen() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchVisible, setSearchVisible] = useState(false);
 
+  const todaySummary = useMemo(() => {
+    if (!items) return { inProgress: 0, pending: 0 };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todayItems = items.filter(item => {
+      const itemDate = new Date(item.dateTime);
+      itemDate.setHours(0, 0, 0, 0);
+      return itemDate.getTime() === today.getTime();
+    });
+
+    return {
+      inProgress: todayItems.filter(item => item.status === 'in_progress').length,
+      pending: todayItems.filter(item => item.status === 'pending').length,
+    };
+  }, [items]);
+
   useEffect(() => {
     if (items) {
-      let filtered = [...items];
+      let baseItems = items.filter(item => item.status !== 'completed');
+      let filtered = [...baseItems];
       
       if (activeFilter !== 'all') {
         filtered = filtered.filter(item => item.status === activeFilter);
@@ -142,19 +160,35 @@ export default function WarehouseCurrentScreen() {
         </View>
       )}
 
-      <View style={styles.filterToolbar}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
-          {FILTER_OPTIONS.map(opt => (
-            <TouchableOpacity 
-              key={opt.value} 
-              style={[styles.filterChip, activeFilter === opt.value && styles.filterChipActive]}
-              onPress={() => setActiveFilter(opt.value)}
-            >
-              <Text style={[styles.filterChipText, activeFilter === opt.value && styles.filterChipTextActive]}>{opt.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      <CollapsibleSection title="오늘 요약 및 필터" isCollapsed={searchVisible}>
+        <View style={styles.collapsibleContent}>
+          <View style={styles.summaryContainer}>
+            <View style={styles.summaryCard}>
+              <Ionicons name="sync-circle-outline" size={24} color={COLORS.statusInProgress} />
+              <Text style={styles.summaryValue}>{todaySummary.inProgress}</Text>
+              <Text style={styles.summaryLabel}>진행중</Text>
+            </View>
+            <View style={styles.summaryCard}>
+              <Ionicons name="time-outline" size={24} color={COLORS.statusPending} />
+              <Text style={styles.summaryValue}>{todaySummary.pending}</Text>
+              <Text style={styles.summaryLabel}>예약</Text>
+            </View>
+          </View>
+          <View style={styles.filterToolbar}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
+              {FILTER_OPTIONS.map(opt => (
+                <TouchableOpacity 
+                  key={opt.value} 
+                  style={[styles.filterChip, activeFilter === opt.value && styles.filterChipActive]}
+                  onPress={() => setActiveFilter(opt.value)}
+                >
+                  <Text style={[styles.filterChipText, activeFilter === opt.value && styles.filterChipTextActive]}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </CollapsibleSection>
 
       <FlatList
         data={filteredItems}
@@ -192,11 +226,35 @@ const styles = StyleSheet.create({
     paddingBottom: SIZES.md,
     backgroundColor: COLORS.surface,
   },
-  filterToolbar: {
+  collapsibleContent: {
     paddingHorizontal: SIZES.md,
-    paddingVertical: SIZES.sm,
+  },
+  summaryContainer: {
+    flexDirection: 'row',
+    gap: SIZES.md,
+    paddingVertical: SIZES.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radiusLG,
+    padding: SIZES.md,
+    alignItems: 'center',
+  },
+  summaryValue: {
+    fontSize: SIZES.fontXXL,
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
+    marginVertical: SIZES.xs,
+  },
+  summaryLabel: {
+    fontSize: SIZES.fontSM,
+    color: COLORS.textSecondary,
+  },
+  filterToolbar: {
+    paddingVertical: SIZES.sm,
   },
   filterContainer: {
     gap: SIZES.sm,

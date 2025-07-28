@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { useQuery } from '@tanstack/react-query';
 import Header from '../components/Header';
 import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
+import CollapsibleSection from '../components/CollapsibleSection';
 import { COLORS, SIZES } from '../constants';
 import { WarehouseRequestItem } from '../types';
 import { getWarehouseRequests } from '../lib/api';
@@ -37,6 +38,24 @@ export default function WarehouseRequestScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchVisible, setSearchVisible] = useState(false);
+
+  const todaySummary = useMemo(() => {
+    if (!requests) return { total: 0, pending: 0, completed: 0 };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todayRequests = requests.filter(item => {
+      const itemDate = new Date(item.scheduledDateTime);
+      itemDate.setHours(0, 0, 0, 0);
+      return itemDate.getTime() === today.getTime();
+    });
+
+    return {
+      total: todayRequests.length,
+      pending: todayRequests.filter(item => item.status === 'pending').length,
+      completed: todayRequests.filter(item => item.status === 'approved' || item.status === 'rejected').length,
+    };
+  }, [requests]);
 
   useEffect(() => {
     if (requests) {
@@ -140,19 +159,40 @@ export default function WarehouseRequestScreen() {
         </View>
       )}
 
-      <View style={styles.filterToolbar}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
-          {FILTER_OPTIONS.map(opt => (
-            <TouchableOpacity 
-              key={opt.value} 
-              style={[styles.filterChip, activeFilter === opt.value && styles.filterChipActive]}
-              onPress={() => setActiveFilter(opt.value)}
-            >
-              <Text style={[styles.filterChipText, activeFilter === opt.value && styles.filterChipTextActive]}>{opt.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      <CollapsibleSection title="오늘 요약 및 필터" isCollapsed={searchVisible}>
+        <View style={styles.collapsibleContent}>
+          <View style={styles.summaryContainer}>
+            <View style={styles.summaryCard}>
+              <Ionicons name="file-tray-full-outline" size={24} color={COLORS.primary} />
+              <Text style={styles.summaryValue}>{todaySummary.total}</Text>
+              <Text style={styles.summaryLabel}>총 요청</Text>
+            </View>
+            <View style={styles.summaryCard}>
+              <Ionicons name="time-outline" size={24} color={COLORS.statusPending} />
+              <Text style={styles.summaryValue}>{todaySummary.pending}</Text>
+              <Text style={styles.summaryLabel}>승인 대기</Text>
+            </View>
+            <View style={styles.summaryCard}>
+              <Ionicons name="checkmark-circle-outline" size={24} color={COLORS.statusCompleted} />
+              <Text style={styles.summaryValue}>{todaySummary.completed}</Text>
+              <Text style={styles.summaryLabel}>처리 완료</Text>
+            </View>
+          </View>
+          <View style={styles.filterToolbar}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
+              {FILTER_OPTIONS.map(opt => (
+                <TouchableOpacity 
+                  key={opt.value} 
+                  style={[styles.filterChip, activeFilter === opt.value && styles.filterChipActive]}
+                  onPress={() => setActiveFilter(opt.value)}
+                >
+                  <Text style={[styles.filterChipText, activeFilter === opt.value && styles.filterChipTextActive]}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </CollapsibleSection>
 
       <FlatList
         data={filteredRequests}
@@ -190,11 +230,35 @@ const styles = StyleSheet.create({
     paddingBottom: SIZES.md,
     backgroundColor: COLORS.surface,
   },
-  filterToolbar: {
+  collapsibleContent: {
     paddingHorizontal: SIZES.md,
-    paddingVertical: SIZES.sm,
+  },
+  summaryContainer: {
+    flexDirection: 'row',
+    gap: SIZES.md,
+    paddingVertical: SIZES.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radiusLG,
+    padding: SIZES.md,
+    alignItems: 'center',
+  },
+  summaryValue: {
+    fontSize: SIZES.fontXXL,
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
+    marginVertical: SIZES.xs,
+  },
+  summaryLabel: {
+    fontSize: SIZES.fontSM,
+    color: COLORS.textSecondary,
+  },
+  filterToolbar: {
+    paddingVertical: SIZES.sm,
   },
   filterContainer: {
     gap: SIZES.sm,

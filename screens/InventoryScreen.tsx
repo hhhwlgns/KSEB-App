@@ -41,7 +41,7 @@ export default function InventoryScreen() {
           item.location.toLowerCase().includes(lowercasedQuery)
         );
       }
-      setFilteredInventory(filtered);
+      setFilteredInventory(filtered.sort((a, b) => new Date(b.lastUpdate).getTime() - new Date(a.lastUpdate).getTime()));
     }
   }, [inventory, searchQuery]);
 
@@ -122,10 +122,40 @@ export default function InventoryScreen() {
 
       <CollapsibleSection title="재고 요약" isCollapsed={isSearchVisible}>
         <View style={styles.summaryContainer}>
-          <View style={styles.summaryCard}><Text style={styles.summaryLabel}>총 재고</Text><Text style={styles.summaryValue}>{summary.total.toLocaleString()}</Text></View>
-          <View style={styles.summaryCard}><Text style={styles.summaryLabel}>입고대기</Text><Text style={[styles.summaryValue, {color: COLORS.success}]}>{summary.inbound.toLocaleString()}</Text></View>
-          <View style={styles.summaryCard}><Text style={styles.summaryLabel}>출고예정</Text><Text style={[styles.summaryValue, {color: COLORS.error}]}>{summary.outbound.toLocaleString()}</Text></View>
-          <View style={styles.summaryCard}><Text style={styles.summaryLabel}>부족재고</Text><Text style={[styles.summaryValue, {color: COLORS.warning}]}>{summary.lowStock}</Text></View>
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryItem}>
+              <Ionicons name="cube-outline" size={22} color={COLORS.primary} />
+              <View style={styles.summaryTextContainer}>
+                <Text style={styles.summaryLabel}>총 재고</Text>
+                <Text style={styles.summaryValue}>{summary.total.toLocaleString()}</Text>
+              </View>
+            </View>
+            <View style={styles.cardSeparator} />
+            <View style={styles.summaryItem}>
+              <Ionicons name="warning-outline" size={22} color={COLORS.warning} />
+              <View style={styles.summaryTextContainer}>
+                <Text style={styles.summaryLabel}>부족 재고</Text>
+                <Text style={styles.summaryValue}>{summary.lowStock}</Text>
+              </View>
+            </View>
+          </View>
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryItem}>
+              <Ionicons name="arrow-down-circle-outline" size={22} color={COLORS.success} />
+              <View style={styles.summaryTextContainer}>
+                <Text style={styles.summaryLabel}>입고대기</Text>
+                <Text style={styles.summaryValue}>{summary.inbound.toLocaleString()}</Text>
+              </View>
+            </View>
+            <View style={styles.cardSeparator} />
+            <View style={styles.summaryItem}>
+              <Ionicons name="arrow-up-circle-outline" size={22} color={COLORS.error} />
+              <View style={styles.summaryTextContainer}>
+                <Text style={styles.summaryLabel}>출고예정</Text>
+                <Text style={styles.summaryValue}>{summary.outbound.toLocaleString()}</Text>
+              </View>
+            </View>
+          </View>
         </View>
       </CollapsibleSection>
 
@@ -152,19 +182,41 @@ const styles = StyleSheet.create({
   searchBarContainer: { paddingHorizontal: SIZES.md, paddingBottom: SIZES.md, backgroundColor: COLORS.surface },
   summaryContainer: {
     flexDirection: 'row',
-    padding: SIZES.md,
-    gap: SIZES.sm,
+    paddingHorizontal: SIZES.md,
+    paddingBottom: SIZES.md,
+    gap: SIZES.md,
   },
   summaryCard: {
     flex: 1,
     backgroundColor: COLORS.surface,
     borderRadius: SIZES.radiusLG,
-    padding: SIZES.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: SIZES.md,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
   },
-  summaryLabel: { fontSize: SIZES.fontSM, color: COLORS.textSecondary, marginBottom: 2 },
-  summaryValue: { fontSize: SIZES.fontXL, fontWeight: 'bold', color: COLORS.textPrimary },
+  summaryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardSeparator: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: SIZES.sm,
+  },
+  summaryTextContainer: {
+    marginLeft: SIZES.sm,
+  },
+  summaryLabel: { 
+    fontSize: SIZES.fontSM, 
+    color: COLORS.textSecondary, 
+  },
+  summaryValue: { 
+    fontSize: SIZES.fontLG, 
+    fontWeight: 'bold', 
+    color: COLORS.textPrimary 
+  },
   listContainer: { padding: SIZES.md },
   inventoryItem: {
     backgroundColor: COLORS.surface,

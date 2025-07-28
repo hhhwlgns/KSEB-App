@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { toast } from 'sonner-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
@@ -20,6 +20,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import FormSelector from '../components/FormSelector';
 import { COLORS, SIZES } from '../constants';
 import { createWarehouseRequest, getProducts, getClients } from '../lib/api';
+import { useWarehouseForm } from '../context/WarehouseFormContext';
 import { Product, Client } from '../types';
 
 type WarehouseFormData = {
@@ -32,9 +33,7 @@ type WarehouseFormData = {
 export default function WarehouseFormScreen() {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
-  
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const { selectedProduct, selectedClient, setFieldValue } = useWarehouseForm();
 
   const [formData, setFormData] = useState<WarehouseFormData>({
     type: 'inbound',
@@ -50,7 +49,13 @@ export default function WarehouseFormScreen() {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     setTimeDigits(hours + minutes);
-  }, []);
+
+    // 화면을 벗어날 때 컨텍스트 상태를 초기화
+    return () => {
+      setFieldValue('selectedProduct', null);
+      setFieldValue('selectedClient', null);
+    };
+  }, [setFieldValue]);
 
   const { data: products, isLoading: isLoadingProducts } = useQuery({ queryKey: ['products'], queryFn: getProducts });
   const { data: clients, isLoading: isLoadingClients } = useQuery({ queryKey: ['clients'], queryFn: getClients });
@@ -91,14 +96,10 @@ export default function WarehouseFormScreen() {
     if (newDigits.length > 4) return;
 
     let hours = newDigits.slice(0, 2);
-    if (hours.length === 2 && parseInt(hours, 10) > 23) {
-      hours = '23';
-    }
+    if (hours.length === 2 && parseInt(hours, 10) > 23) hours = '23';
 
     let minutes = newDigits.slice(2, 4);
-    if (minutes.length === 2 && parseInt(minutes, 10) > 59) {
-      minutes = '59';
-    }
+    if (minutes.length === 2 && parseInt(minutes, 10) > 59) minutes = '59';
 
     setTimeDigits(hours + minutes);
     if (errors.time) setErrors(prev => ({ ...prev, time: '' }));
@@ -148,9 +149,7 @@ export default function WarehouseFormScreen() {
   const formatDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   
   const formatTime = (digits: string) => {
-    if (digits.length > 2) {
-      return `${digits.slice(0, 2)}:${digits.slice(2)}`;
-    }
+    if (digits.length > 2) return `${digits.slice(0, 2)}:${digits.slice(2)}`;
     return digits;
   };
 
@@ -182,8 +181,8 @@ export default function WarehouseFormScreen() {
               </View>
             </View>
 
-            <FormSelector label="품목" value={selectedProduct?.name} placeholder="품목을 선택하세요" onPress={() => navigation.navigate('Selection', { title: '품목 선택', items: products || [], onSelect: (item) => setSelectedProduct(item as Product) })} required error={errors.product} />
-            <FormSelector label="거래처" value={selectedClient?.name} placeholder="거래처를 선택하세요" onPress={() => navigation.navigate('Selection', { title: '거래처 선택', items: clients || [], onSelect: (item) => setSelectedClient(item as Client) })} required error={errors.client} />
+            <FormSelector label="품목" value={selectedProduct?.name} placeholder="품목을 선택하세요" onPress={() => navigation.navigate('Selection', { title: '품목 선택', items: products || [], returnKey: 'selectedProduct' })} required error={errors.product} />
+            <FormSelector label="거래처" value={selectedClient?.name} placeholder="거래처를 선택하세요" onPress={() => navigation.navigate('Selection', { title: '거래처 선택', items: clients || [], returnKey: 'selectedClient' })} required error={errors.client} />
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>수량 *</Text>
