@@ -16,23 +16,16 @@ import { useQuery } from '@tanstack/react-query';
 import Header from '../components/Header';
 import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
-import CollapsibleSection from '../components/CollapsibleSection';
 import { COLORS, SIZES } from '../constants';
 import { WarehouseItem } from '../types';
 import { getWarehouseCurrent } from '../lib/api';
 
-const FILTER_OPTIONS = {
-  type: [
-    { label: '전체', value: '' },
-    { label: '입고', value: 'IN' },
-    { label: '출고', value: 'OUT' },
-  ],
-  status: [
-    { label: '전체', value: '' },
-    { label: '예약', value: 'PENDING' },
-    { label: '진행중', value: 'IN_PROGRESS' },
-  ],
-};
+const FILTER_OPTIONS = [
+  { label: '전체', value: 'all' },
+  { label: '진행중', value: 'in_progress' },
+  { label: '예약', value: 'pending' },
+  { label: '완료', value: 'completed' },
+];
 
 export default function WarehouseCurrentScreen() {
   const navigation = useNavigation();
@@ -42,224 +35,124 @@ export default function WarehouseCurrentScreen() {
   });
 
   const [filteredItems, setFilteredItems] = useState<WarehouseItem[]>([]);
-  const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
-  const [selectedType, setSelectedType] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('');
+  const [activeFilter, setActiveFilter] = useState('all');
 
   useEffect(() => {
     if (items) {
-      applyFilters(items, selectedType, selectedStatus, searchQuery);
-    } else {
-      setFilteredItems([]);
-    }
-  }, [items, selectedType, selectedStatus, searchQuery]);
-
-  const applyFilters = (
-    data: WarehouseItem[],
-    type: string,
-    status: string,
-    query: string
-  ) => {
-    let filtered = [...data];
-
-    if (type) filtered = filtered.filter(item => item.type === type);
-    if (status) filtered = filtered.filter(item => item.status === status);
-    if (query.trim()) {
-      filtered = filtered.filter(item =>
-        item.productName.toLowerCase().includes(query.toLowerCase()) ||
-        item.category.toLowerCase().includes(query.toLowerCase()) ||
-        item.client.toLowerCase().includes(query.toLowerCase()) ||
-        item.location.toLowerCase().includes(query.toLowerCase())
-      );
-    }
-
-    setFilteredItems(filtered);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PENDING': return COLORS.statusPending;
-      case 'IN_PROGRESS': return COLORS.statusInProgress;
-      case 'COMPLETED': return COLORS.statusCompleted;
-      default: return COLORS.textMuted;
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'PENDING': return '예약';
-      case 'IN_PROGRESS': return '진행중';
-      case 'COMPLETED': return '완료';
-      default: return status;
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-  };
-
-  const renderFilterChips = (
-    options: Array<{ label: string; value: string }>,
-    selectedValue: string,
-    onSelect: (value: string) => void
-  ) => (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.filterScrollView}
-      contentContainerStyle={styles.filterContainer}
-    >
-      {options.map((option) => (
-        <TouchableOpacity
-          key={option.value}
-          style={[
-            styles.filterChip,
-            selectedValue === option.value && styles.filterChipActive,
-          ]}
-          onPress={() => onSelect(option.value)}
-        >
-          <Text
-            style={[
-              styles.filterChipText,
-              selectedValue === option.value && styles.filterChipTextActive,
-            ]}
-          >
-            {option.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  );
-
-  const renderWarehouseItem = ({ item }: { item: WarehouseItem }) => (
-    <TouchableOpacity style={styles.itemCard} activeOpacity={0.7}>
-      <View style={styles.itemHeader}>
-        <View style={styles.itemType}>
-          <Ionicons
-            name={item.type === 'IN' ? 'arrow-down' : 'arrow-up'}
-            size={16}
-            color={item.type === 'IN' ? COLORS.success : COLORS.error}
-          />
-          <Text style={[
-            styles.itemTypeText,
-            { color: item.type === 'IN' ? COLORS.success : COLORS.error }
-          ]}>
-            {item.type === 'IN' ? '입고' : '출고'}
-          </Text>
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-            {getStatusLabel(item.status)}
-          </Text>
-        </View>
-      </View>
+      let filtered = [...items];
       
-      <Text style={styles.productName}>{item.productName}</Text>
+      if (activeFilter !== 'all') {
+        filtered = filtered.filter(item => item.status === activeFilter);
+      }
+
+      if (searchQuery.trim()) {
+        const lowercasedQuery = searchQuery.toLowerCase();
+        filtered = filtered.filter(item =>
+          item.productName.toLowerCase().includes(lowercasedQuery) ||
+          item.sku.toLowerCase().includes(lowercasedQuery) ||
+          item.companyName.toLowerCase().includes(lowercasedQuery)
+        );
+      }
       
-      <View style={styles.itemDetails}>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>카테고리:</Text>
-          <Text style={styles.detailValue}>{item.category}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>수량:</Text>
-          <Text style={styles.quantityValue}>{item.quantity}개</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>위치:</Text>
-          <Text style={styles.detailValue}>{item.location}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>거래처:</Text>
-          <Text style={styles.detailValue}>{item.client}</Text>
-        </View>
-        {item.notes && (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>비고:</Text>
-            <Text style={styles.notesValue}>{item.notes}</Text>
+      filtered.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+
+      setFilteredItems(filtered);
+    }
+  }, [items, searchQuery, activeFilter]);
+
+  const getStatusStyle = (status: WarehouseItem['status']) => {
+    switch (status) {
+      case 'in_progress': return { color: COLORS.statusInProgress, icon: 'sync-circle-outline', label: '진행중' };
+      case 'pending': return { color: COLORS.statusPending, icon: 'time-outline', label: '예약' };
+      case 'completed': return { color: COLORS.statusCompleted, icon: 'checkmark-done-outline', label: '완료' };
+      default: return { color: COLORS.textMuted, icon: 'help-circle-outline', label: '알 수 없음' };
+    }
+  };
+
+  const formatDateTime = (dateTimeString: string) => {
+    if (!dateTimeString) return 'N/A';
+    const date = new Date(dateTimeString);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  };
+
+  const renderWarehouseItem = ({ item }: { item: WarehouseItem }) => {
+    const statusStyle = getStatusStyle(item.status);
+    const isOutbound = item.type === 'outbound';
+
+    return (
+      <View style={styles.itemCard}>
+        <View style={styles.cardHeader}>
+          <View style={[styles.typeBadge, isOutbound ? styles.outboundBadge : styles.inboundBadge]}>
+            <Ionicons name={isOutbound ? 'arrow-up-circle-outline' : 'arrow-down-circle-outline'} size={16} color={isOutbound ? COLORS.error : COLORS.success} />
+            <Text style={[styles.typeText, isOutbound ? styles.outboundText : styles.inboundText]}>
+              {isOutbound ? '출고' : '입고'}
+            </Text>
           </View>
-        )}
+          <View style={styles.statusContainer}>
+            <Ionicons name={statusStyle.icon as any} size={16} color={statusStyle.color} />
+            <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusStyle.label}</Text>
+          </View>
+        </View>
+        
+        <View style={styles.itemInfo}>
+          <Text style={styles.productName}>{item.productName}</Text>
+          <Text style={styles.itemSku}>SKU: {item.sku}</Text>
+        </View>
+
+        <View style={styles.detailGrid}>
+          <View style={styles.detailRow}><Text style={styles.detailLabel}>개별코드</Text><Text style={styles.detailValue}>{item.individualCode}</Text></View>
+          <View style={styles.detailRow}><Text style={styles.detailLabel}>규격</Text><Text style={styles.detailValue}>{item.specification}</Text></View>
+          <View style={styles.detailRow}><Text style={styles.detailLabel}>수량</Text><Text style={[styles.detailValue, styles.quantityValue]}>{item.quantity} 개</Text></View>
+          <View style={styles.detailRow}><Text style={styles.detailLabel}>위치</Text><Text style={styles.detailValue}>{item.location}</Text></View>
+          <View style={styles.detailRow}><Text style={styles.detailLabel}>거래처</Text><Text style={styles.detailValue}>{item.companyName}</Text></View>
+          {isOutbound && <View style={styles.detailRow}><Text style={styles.detailLabel}>목적지</Text><Text style={styles.detailValue}>{item.destination}</Text></View>}
+        </View>
+
+        <Text style={styles.dateTimeText}>{formatDateTime(item.dateTime)}</Text>
       </View>
-      
-      <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   if (isLoading && !items) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Header 
-          title="입출고 현황" 
-          subtitle="현재 진행중인 입출고 목록" 
-          showBack 
-          rightComponent={
-            <TouchableOpacity
-              style={styles.searchButton}
-              onPress={() => setSearchVisible(!searchVisible)}
-            >
-              <Ionicons name="search" size={20} color={COLORS.primary} />
-            </TouchableOpacity>
-          }
-        />
-        <LoadingSpinner />
-      </SafeAreaView>
-    );
+    return <SafeAreaView style={styles.container}><LoadingSpinner /></SafeAreaView>;
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header 
-        title="입출고 현황" 
-        subtitle="현재 진행중인 입출고 목록" 
-        showBack 
-        rightComponent={
-          <TouchableOpacity
-            style={styles.searchButton}
-            onPress={() => setSearchVisible(!searchVisible)}
-          >
-            <Ionicons name="search" size={20} color={COLORS.primary} />
-          </TouchableOpacity>
-        }
-      />
-
-      {searchVisible && (
+      <Header title="입출고 현황" subtitle="현재 진행중인 입출고 목록" showBack />
+      
+      <View style={styles.toolbar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
+          {FILTER_OPTIONS.map(opt => (
+            <TouchableOpacity 
+              key={opt.value} 
+              style={[styles.filterChip, activeFilter === opt.value && styles.filterChipActive]}
+              onPress={() => setActiveFilter(opt.value)}
+            >
+              <Text style={[styles.filterChipText, activeFilter === opt.value && styles.filterChipTextActive]}>{opt.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
         <SearchBar
-          placeholder="창고 검색..."
+          placeholder="품목명, SKU, 거래처 검색..."
           value={searchQuery}
           onChangeText={setSearchQuery}
+          containerStyle={{ flex: 1 }}
         />
-      )}
-
-      <CollapsibleSection title="필터">
-        <View style={styles.filtersContainer}>
-          <Text style={styles.filterTitle}>유형</Text>
-          {renderFilterChips(FILTER_OPTIONS.type, selectedType, setSelectedType)}
-          
-          <Text style={styles.filterTitle}>상태</Text>
-          {renderFilterChips(FILTER_OPTIONS.status, selectedStatus, setSelectedStatus)}
-        </View>
-      </CollapsibleSection>
+      </View>
 
       <FlatList
         data={filteredItems}
         renderItem={renderWarehouseItem}
         keyExtractor={(item) => item.id}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-        }
-        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="cube-outline" size={48} color={COLORS.textMuted} />
+            <Ionicons name="file-tray-stacked-outline" size={48} color={COLORS.textMuted} />
             <Text style={styles.emptyText}>
-              {searchQuery || selectedType || selectedStatus 
-                ? '조건에 맞는 입출고 항목이 없습니다.' 
-                : '현재 진행중인 입출고가 없습니다.'
-              }
+              {searchQuery || activeFilter !== 'all' ? '조건에 맞는 현황이 없습니다.' : '입출고 현황이 없습니다.'}
             </Text>
           </View>
         }
@@ -277,145 +170,91 @@ export default function WarehouseCurrentScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  searchButton: {
-    padding: SIZES.sm,
-  },
-  filtersContainer: {
-    paddingVertical: SIZES.md,
-  },
-  filterTitle: {
-    fontSize: SIZES.fontSM,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginLeft: SIZES.lg,
-    marginBottom: SIZES.sm,
-    marginTop: SIZES.sm,
-  },
-  filterScrollView: {
-    marginBottom: SIZES.sm,
+  container: { flex: 1, backgroundColor: COLORS.background },
+  toolbar: {
+    paddingHorizontal: SIZES.md,
+    paddingTop: SIZES.sm,
+    paddingBottom: SIZES.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
   filterContainer: {
-    paddingHorizontal: SIZES.lg,
     gap: SIZES.sm,
+    marginBottom: SIZES.md,
   },
   filterChip: {
     paddingHorizontal: SIZES.md,
     paddingVertical: SIZES.sm,
     borderRadius: SIZES.radiusXL,
     backgroundColor: COLORS.surfaceHover,
-    borderWidth: 1,
-    borderColor: COLORS.border,
   },
-  filterChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  filterChipText: {
-    fontSize: SIZES.fontSM,
-    fontWeight: '500',
-    color: COLORS.textSecondary,
-  },
-  filterChipTextActive: {
-    color: 'white',
-  },
-  listContainer: {
-    paddingTop: SIZES.sm,
-    paddingHorizontal: SIZES.md,
-    paddingBottom: 80, // FAB 공간 확보
-  },
+  filterChipActive: { backgroundColor: COLORS.primary },
+  filterChipText: { fontSize: SIZES.fontSM, fontWeight: '600', color: COLORS.textSecondary },
+  filterChipTextActive: { color: 'white' },
+  listContainer: { padding: SIZES.md, paddingBottom: 80 },
   itemCard: {
     backgroundColor: COLORS.surface,
     borderRadius: SIZES.radiusLG,
     padding: SIZES.lg,
     marginBottom: SIZES.md,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  itemHeader: {
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SIZES.sm,
-  },
-  itemType: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SIZES.xs,
-  },
-  itemTypeText: {
-    fontSize: SIZES.fontSM,
-    fontWeight: '600',
-  },
-  statusBadge: {
-    paddingHorizontal: SIZES.sm,
-    paddingVertical: SIZES.xs,
-    borderRadius: SIZES.radiusSM,
-  },
-  statusText: {
-    fontSize: SIZES.fontXS,
-    fontWeight: '600',
-  },
-  productName: {
-    fontSize: SIZES.fontLG,
-    fontWeight: 'bold',
-    color: COLORS.textPrimary,
     marginBottom: SIZES.md,
   },
-  itemDetails: {
-    gap: SIZES.xs,
-    marginBottom: SIZES.sm,
+  typeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SIZES.sm,
+    paddingVertical: SIZES.xs,
+    borderRadius: SIZES.radius,
+  },
+  inboundBadge: { backgroundColor: '#e0f2fe' },
+  outboundBadge: { backgroundColor: '#fee2e2' },
+  typeText: { fontSize: SIZES.fontSM, fontWeight: 'bold', marginLeft: SIZES.xs },
+  inboundText: { color: COLORS.success },
+  outboundText: { color: COLORS.error },
+  statusContainer: { flexDirection: 'row', alignItems: 'center', gap: SIZES.xs },
+  statusText: { fontSize: SIZES.fontSM, fontWeight: '600' },
+  itemInfo: {
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    paddingBottom: SIZES.md,
+    marginBottom: SIZES.md,
+  },
+  productName: { fontSize: SIZES.fontLG, fontWeight: 'bold', color: COLORS.textPrimary },
+  itemSku: { fontSize: SIZES.fontSM, color: COLORS.textSecondary },
+  detailGrid: {
+    gap: SIZES.sm,
+    marginBottom: SIZES.md,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  detailLabel: {
-    fontSize: SIZES.fontSM,
-    color: COLORS.textSecondary,
-    flex: 1,
-  },
-  detailValue: {
-    fontSize: SIZES.fontSM,
-    color: COLORS.textPrimary,
-    fontWeight: '500',
-    flex: 2,
-    textAlign: 'right',
-  },
-  quantityValue: {
-    fontSize: SIZES.fontSM,
-    color: COLORS.primary,
-    fontWeight: '600',
-    flex: 2,
-    textAlign: 'right',
-  },
-  notesValue: {
-    fontSize: SIZES.fontSM,
-    color: COLORS.textMuted,
-    fontStyle: 'italic',
-    flex: 2,
-    textAlign: 'right',
-  },
-  dateText: {
+  detailLabel: { fontSize: SIZES.fontSM, color: COLORS.textSecondary },
+  detailValue: { fontSize: SIZES.fontSM, color: COLORS.textPrimary, fontWeight: '500' },
+  quantityValue: { color: COLORS.primary, fontWeight: 'bold' },
+  dateTimeText: {
     fontSize: SIZES.fontXS,
     color: COLORS.textMuted,
     textAlign: 'right',
+    marginTop: SIZES.sm,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: SIZES.xl,
+    padding: SIZES.xl,
+    marginTop: 50,
   },
   emptyText: {
     fontSize: SIZES.fontMD,
@@ -433,13 +272,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
     elevation: 8,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -31,348 +31,198 @@ export default function InventoryScreen() {
 
   useEffect(() => {
     if (inventory) {
-      setFilteredInventory(inventory);
-    } else {
-      setFilteredInventory([]);
+      let filtered = [...inventory];
+      if (searchQuery.trim()) {
+        const lowercasedQuery = searchQuery.toLowerCase();
+        filtered = filtered.filter(item =>
+          item.name.toLowerCase().includes(lowercasedQuery) ||
+          item.sku.toLowerCase().includes(lowercasedQuery) ||
+          item.specification.toLowerCase().includes(lowercasedQuery) ||
+          item.location.toLowerCase().includes(lowercasedQuery)
+        );
+      }
+      setFilteredInventory(filtered);
     }
-  }, [inventory]);
+  }, [inventory, searchQuery]);
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    if (!inventory) return;
+  const summary = useMemo(() => {
+    if (!filteredInventory) return { total: 0, inbound: 0, outbound: 0, lowStock: 0 };
+    return {
+      total: filteredInventory.reduce((sum, item) => sum + item.quantity, 0),
+      inbound: filteredInventory.reduce((sum, item) => sum + item.inboundScheduled, 0),
+      outbound: filteredInventory.reduce((sum, item) => sum + item.outboundScheduled, 0),
+      lowStock: filteredInventory.filter(item => item.status === '부족' || item.status === '위험').length,
+    };
+  }, [filteredInventory]);
 
-    if (!query.trim()) {
-      setFilteredInventory(inventory);
-      return;
+  const getStatusStyle = (status: InventoryItem['status']) => {
+    switch (status) {
+      case '정상': return { color: COLORS.success, label: '정상' };
+      case '부족': return { color: COLORS.warning, label: '부족' };
+      case '위험': return { color: COLORS.error, label: '위험' };
+      default: return { color: COLORS.textMuted, label: '알 수 없음' };
     }
-
-    const filtered = inventory.filter(
-      (item) =>
-        item.productName.toLowerCase().includes(query.toLowerCase()) ||
-        item.productCode.toLowerCase().includes(query.toLowerCase()) ||
-        item.category.toLowerCase().includes(query.toLowerCase()) ||
-        item.location.toLowerCase().includes(query.toLowerCase()) ||
-        (item.client && item.client.toLowerCase().includes(query.toLowerCase()))
-    );
-    setFilteredInventory(filtered);
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
-    return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
   };
 
-  const getQuantityColor = (quantity: number) => {
-    if (quantity <= 5) return COLORS.error;
-    if (quantity <= 20) return COLORS.warning;
-    return COLORS.success;
-  };
-
-  const getQuantityStatus = (quantity: number) => {
-    if (quantity <= 5) return '부족';
-    if (quantity <= 20) return '주의';
-    return '충분';
-  };
-
-  const calculateTotalValue = () => {
-    return filteredInventory.reduce((total, item) => total + item.quantity, 0);
-  };
-
-  const calculateLowStock = () => {
-    return filteredInventory.filter(item => item.quantity <= 5).length;
-  };
-
-  const renderInventoryItem = ({ item }: { item: InventoryItem }) => (
-    <TouchableOpacity style={styles.inventoryItem} activeOpacity={0.7}>
-      <View style={styles.itemHeader}>
-        <View style={styles.itemInfo}>
-          <Text style={styles.productCode}>{item.productCode}</Text>
-          <Text style={styles.categoryBadge}>{item.category}</Text>
+  const renderInventoryItem = ({ item, index }: { item: InventoryItem, index: number }) => {
+    const statusStyle = getStatusStyle(item.status);
+    return (
+      <View style={styles.inventoryItem}>
+        <View style={styles.itemHeader}>
+          <Text style={styles.itemIndex}>{index + 1}</Text>
+          <View style={styles.itemInfo}>
+            <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+            <Text style={styles.itemSku}>SKU: {item.sku}</Text>
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: statusStyle.color + '20' }]}>
+            <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusStyle.label}</Text>
+          </View>
         </View>
-        <View style={[
-          styles.quantityBadge,
-          { backgroundColor: getQuantityColor(item.quantity) + '20' }
-        ]}>
-          <Text style={[
-            styles.quantityStatus,
-            { color: getQuantityColor(item.quantity) }
-          ]}>
-            {getQuantityStatus(item.quantity)}
-          </Text>
+        
+        <View style={styles.detailGrid}>
+          <View style={styles.detailRow}><Text style={styles.detailLabel}>규격</Text><Text style={styles.detailValue}>{item.specification}</Text></View>
+          <View style={styles.detailRow}><Text style={styles.detailLabel}>위치</Text><Text style={styles.detailValue}>{item.location}</Text></View>
+          <View style={styles.detailRow}><Text style={styles.detailLabel}>현재고</Text><Text style={[styles.detailValue, styles.quantityValue]}>{item.quantity}</Text></View>
+          <View style={styles.detailRow}><Text style={styles.detailLabel}>입고예정</Text><Text style={[styles.detailValue, styles.inboundValue]}>{item.inboundScheduled}</Text></View>
+          <View style={styles.detailRow}><Text style={styles.detailLabel}>출고예정</Text><Text style={[styles.detailValue, styles.outboundValue]}>{item.outboundScheduled}</Text></View>
         </View>
+        <Text style={styles.dateText}>최종 업데이트: {formatDateTime(item.lastUpdate)}</Text>
       </View>
-      
-      <Text style={styles.productName}>{item.productName}</Text>
-      
-      <View style={styles.itemDetails}>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>재고 수량:</Text>
-          <Text style={[
-            styles.quantityValue,
-            { color: getQuantityColor(item.quantity) }
-          ]}>
-            {item.quantity}개
-          </Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>보관 위치:</Text>
-          <Text style={styles.detailValue}>{item.location}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>거래처:</Text>
-          <Text style={styles.detailValue}>{item.client}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>최종 업데이트:</Text>
-          <Text style={styles.dateValue}>{formatDate(item.lastUpdated)}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   if (isLoading && !inventory) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Header 
-          title="재고 관리" 
-          subtitle="재고 현황을 확인하고 관리하세요" 
-          rightComponent={
-            <TouchableOpacity
-              style={styles.searchButton}
-              onPress={() => setIsSearchVisible(!isSearchVisible)}
-            >
-              <Ionicons name="search" size={20} color={COLORS.primary} />
-            </TouchableOpacity>
-          }
-        />
-        <LoadingSpinner />
-      </SafeAreaView>
-    );
+    return <SafeAreaView style={styles.container}><LoadingSpinner /></SafeAreaView>;
   }
 
   return (
     <SafeAreaView style={styles.container}>
       <Header 
-        title="재고 관리" 
-        subtitle="재고 현황을 확인하고 관리하세요" 
+        title="재고 현황" 
+        subtitle="실시간 재고 현황" 
+        showBack
         rightComponent={
-          <TouchableOpacity
-            style={styles.searchButton}
-            onPress={() => setIsSearchVisible(!isSearchVisible)}
-          >
-            <Ionicons name="search" size={20} color={COLORS.primary} />
+          <TouchableOpacity style={styles.searchButton} onPress={() => setIsSearchVisible(!isSearchVisible)}>
+            <Ionicons name={isSearchVisible ? "close" : "search"} size={20} color={COLORS.primary} />
           </TouchableOpacity>
         }
       />
 
       {isSearchVisible && (
-        <SearchBar
-          placeholder="재고 검색..."
-          value={searchQuery}
-          onChangeText={handleSearch}
-        />
+        <View style={styles.searchBarContainer}>
+          <SearchBar placeholder="품목명, SKU, 규격, 위치 검색..." value={searchQuery} onChangeText={handleSearch} />
+        </View>
       )}
 
-      <CollapsibleSection title="재고 요약">
+      <CollapsibleSection title="재고 요약" isCollapsed={isSearchVisible}>
         <View style={styles.summaryContainer}>
-          <View style={styles.summaryCard}>
-            <Ionicons name="cube" size={24} color={COLORS.primary} />
-            <Text style={styles.summaryValue}>{calculateTotalValue()}</Text>
-            <Text style={styles.summaryLabel}>총 재고량</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Ionicons name="warning" size={24} color={COLORS.error} />
-            <Text style={styles.summaryValue}>{calculateLowStock()}</Text>
-            <Text style={styles.summaryLabel}>부족 품목</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Ionicons name="list" size={24} color={COLORS.success} />
-            <Text style={styles.summaryValue}>{filteredInventory.length}</Text>
-            <Text style={styles.summaryLabel}>품목 수</Text>
-          </View>
+          <View style={styles.summaryCard}><Text style={styles.summaryLabel}>총 재고</Text><Text style={styles.summaryValue}>{summary.total.toLocaleString()}</Text></View>
+          <View style={styles.summaryCard}><Text style={styles.summaryLabel}>입고대기</Text><Text style={[styles.summaryValue, {color: COLORS.success}]}>{summary.inbound.toLocaleString()}</Text></View>
+          <View style={styles.summaryCard}><Text style={styles.summaryLabel}>출고예정</Text><Text style={[styles.summaryValue, {color: COLORS.error}]}>{summary.outbound.toLocaleString()}</Text></View>
+          <View style={styles.summaryCard}><Text style={styles.summaryLabel}>부족재고</Text><Text style={[styles.summaryValue, {color: COLORS.warning}]}>{summary.lowStock}</Text></View>
         </View>
       </CollapsibleSection>
 
-      <View style={styles.content}>
-        {filteredInventory.length === 0 ? (
+      <FlatList
+        data={filteredInventory}
+        renderItem={renderInventoryItem}
+        keyExtractor={(item) => item.id}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+        contentContainerStyle={styles.listContainer}
+        ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="cube-outline" size={48} color={COLORS.textMuted} />
-            <Text style={styles.emptyText}>
-              {searchQuery ? '검색 결과가 없습니다.' : '재고 정보가 없습니다.'}
-            </Text>
+            <Ionicons name="file-tray-stacked-outline" size={48} color={COLORS.textMuted} />
+            <Text style={styles.emptyText}>{searchQuery ? '검색 결과가 없습니다.' : '재고 정보가 없습니다.'}</Text>
           </View>
-        ) : (
-          <>
-            <View style={styles.listHeader}>
-              <Text style={styles.listTitle}>
-                재고 목록 ({filteredInventory.length}개 품목)
-              </Text>
-            </View>
-            <FlatList
-              data={filteredInventory}
-              renderItem={renderInventoryItem}
-              keyExtractor={(item) => item.id}
-              refreshControl={
-                <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-              }
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.listContainer}
-            />
-          </>
-        )}
-      </View>
+        }
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  searchButton: {
-    padding: SIZES.sm,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  searchButton: { padding: SIZES.sm },
+  searchBarContainer: { paddingHorizontal: SIZES.md, paddingBottom: SIZES.md, backgroundColor: COLORS.surface },
   summaryContainer: {
     flexDirection: 'row',
-    paddingHorizontal: SIZES.lg,
-    paddingVertical: SIZES.md,
-    gap: SIZES.md,
+    padding: SIZES.md,
+    gap: SIZES.sm,
   },
   summaryCard: {
     flex: 1,
     backgroundColor: COLORS.surface,
     borderRadius: SIZES.radiusLG,
-    padding: SIZES.md,
+    padding: SIZES.sm,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    justifyContent: 'center',
   },
-  summaryValue: {
-    fontSize: SIZES.fontXXL,
-    fontWeight: 'bold',
-    color: COLORS.textPrimary,
-    marginVertical: SIZES.xs,
-  },
-  summaryLabel: {
-    fontSize: SIZES.fontSM,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-  },
-  content: {
-    flex: 1,
-  },
-  listHeader: {
-    paddingHorizontal: SIZES.lg,
-    paddingVertical: SIZES.md,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  listContainer: {
-    padding: SIZES.md,
-  },
+  summaryLabel: { fontSize: SIZES.fontSM, color: COLORS.textSecondary, marginBottom: 2 },
+  summaryValue: { fontSize: SIZES.fontXL, fontWeight: 'bold', color: COLORS.textPrimary },
+  listContainer: { padding: SIZES.md },
   inventoryItem: {
     backgroundColor: COLORS.surface,
     borderRadius: SIZES.radiusLG,
-    padding: SIZES.lg,
+    padding: SIZES.md,
     marginBottom: SIZES.md,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   itemHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SIZES.sm,
-  },
-  itemInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SIZES.sm,
-  },
-  productCode: {
-    fontSize: SIZES.fontSM,
-    fontWeight: '600',
-    color: COLORS.primary,
-    backgroundColor: COLORS.primary + '15',
-    paddingHorizontal: SIZES.sm,
-    paddingVertical: SIZES.xs,
-    borderRadius: SIZES.radiusSM,
-  },
-  categoryBadge: {
-    fontSize: SIZES.fontSM,
-    fontWeight: '500',
-    color: COLORS.secondary,
-    backgroundColor: COLORS.secondary + '15',
-    paddingHorizontal: SIZES.sm,
-    paddingVertical: SIZES.xs,
-    borderRadius: SIZES.radiusSM,
-  },
-  quantityBadge: {
-    paddingHorizontal: SIZES.sm,
-    paddingVertical: SIZES.xs,
-    borderRadius: SIZES.radiusSM,
-  },
-  quantityStatus: {
-    fontSize: SIZES.fontXS,
-    fontWeight: '600',
-  },
-  productName: {
-    fontSize: SIZES.fontLG,
-    fontWeight: 'bold',
-    color: COLORS.textPrimary,
     marginBottom: SIZES.md,
+    paddingBottom: SIZES.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
-  itemDetails: {
-    gap: SIZES.xs,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  detailLabel: {
+  itemIndex: {
     fontSize: SIZES.fontSM,
-    color: COLORS.textSecondary,
-    flex: 1,
-  },
-  detailValue: {
-    fontSize: SIZES.fontSM,
-    color: COLORS.textPrimary,
-    fontWeight: '500',
-    flex: 1,
-    textAlign: 'right',
-  },
-  quantityValue: {
-    fontSize: SIZES.fontMD,
     fontWeight: 'bold',
-    flex: 1,
-    textAlign: 'right',
-  },
-  dateValue: {
-    fontSize: SIZES.fontSM,
     color: COLORS.textMuted,
-    flex: 1,
+    marginRight: SIZES.md,
+  },
+  itemInfo: { flex: 1 },
+  itemName: { fontSize: SIZES.fontLG, fontWeight: 'bold', color: COLORS.textPrimary },
+  itemSku: { fontSize: SIZES.fontSM, color: COLORS.textSecondary },
+  statusBadge: {
+    paddingHorizontal: SIZES.sm,
+    paddingVertical: SIZES.xs,
+    borderRadius: SIZES.radius,
+    marginLeft: SIZES.sm,
+  },
+  statusText: { fontSize: SIZES.fontXS, fontWeight: 'bold' },
+  detailGrid: { gap: SIZES.xs, marginBottom: SIZES.sm },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 2 },
+  detailLabel: { fontSize: SIZES.fontSM, color: COLORS.textSecondary },
+  detailValue: { fontSize: SIZES.fontSM, color: COLORS.textPrimary, fontWeight: '500' },
+  quantityValue: { fontWeight: 'bold', color: COLORS.primary },
+  inboundValue: { fontWeight: 'bold', color: COLORS.success },
+  outboundValue: { fontWeight: 'bold', color: COLORS.error },
+  dateText: {
+    fontSize: SIZES.fontXS,
+    color: COLORS.textMuted,
     textAlign: 'right',
+    marginTop: SIZES.md,
+    paddingTop: SIZES.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: SIZES.xl,
+    padding: SIZES.xl,
+    marginTop: 50,
   },
   emptyText: {
     fontSize: SIZES.fontMD,

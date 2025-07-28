@@ -86,32 +86,53 @@ export default function ProductListScreen() {
   };
 
   const handleEdit = (product: Product) => {
-    navigation.navigate('ProductForm', { productId: product.id });
+    navigation.navigate('ProductForm', { product: product });
   };
 
   const formatPrice = (price: number) => {
+    if (typeof price !== 'number') return 'N/A';
     return price.toLocaleString('ko-KR') + '원';
   };
 
   const renderProductItem = ({ item }: { item: Product }) => (
-    <View style={styles.productItem}>
+    <TouchableOpacity style={styles.productItem} onPress={() => handleEdit(item)} activeOpacity={0.7}>
       <View style={styles.productInfo}>
         <View style={styles.productHeader}>
-          <Text style={styles.productCode}>{item.code}</Text>
-          <Text style={styles.productGroup}>{item.group}</Text>
+          <Text style={styles.productName}>{item.name}</Text>
+          <Text style={styles.productCode}>({item.code})</Text>
         </View>
-        <Text style={styles.productName}>{item.name}</Text>
-        <Text style={styles.productDetail}>규격: {item.specification}</Text>
+        <View style={styles.detailGrid}>
+          <View style={styles.detailRow}>
+            <Ionicons name="layers-outline" size={14} color={COLORS.textSecondary} style={styles.icon} />
+            <Text style={styles.detailLabel}>품목그룹</Text>
+            <Text style={styles.detailValue}>{item.group}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Ionicons name="barcode-outline" size={14} color={COLORS.textSecondary} style={styles.icon} />
+            <Text style={styles.detailLabel}>바코드</Text>
+            <Text style={styles.detailValue}>{item.barcode || 'N/A'}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Ionicons name="options-outline" size={14} color={COLORS.textSecondary} style={styles.icon} />
+            <Text style={styles.detailLabel}>규격</Text>
+            <Text style={styles.detailValue}>{item.specification}</Text>
+          </View>
+        </View>
+        <View style={styles.priceContainer}>
+          <View style={styles.priceBox}>
+            <Text style={styles.priceLabel}>입고단가</Text>
+            <Text style={[styles.priceValue, styles.inPrice]}>{formatPrice(item.inboundPrice)}</Text>
+          </View>
+          <View style={styles.priceBox}>
+            <Text style={styles.priceLabel}>출고단가</Text>
+            <Text style={[styles.priceValue, styles.outPrice]}>{formatPrice(item.outboundPrice)}</Text>
+          </View>
+        </View>
       </View>
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity style={styles.actionButton} onPress={() => handleEdit(item)}>
-          <Ionicons name="pencil" size={20} color={COLORS.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton} onPress={() => handleDelete(item.id)}>
-          <Ionicons name="trash-outline" size={20} color={COLORS.error} />
-        </TouchableOpacity>
-      </View>
-    </View>
+      <TouchableOpacity style={styles.deleteButton} onPress={(e) => { e.stopPropagation(); handleDelete(item.id); }}>
+        <Ionicons name="trash-outline" size={22} color={COLORS.error} />
+      </TouchableOpacity>
+    </TouchableOpacity>
   );
 
   if (isLoading && !products) {
@@ -122,10 +143,7 @@ export default function ProductListScreen() {
           subtitle="등록된 품목을 관리하세요" 
           showBack 
           rightComponent={
-            <TouchableOpacity
-              style={styles.searchButton}
-              onPress={() => setSearchVisible(!searchVisible)}
-            >
+            <TouchableOpacity style={styles.searchButton} onPress={() => setSearchVisible(!searchVisible)}>
               <Ionicons name="search" size={20} color={COLORS.primary} />
             </TouchableOpacity>
           }
@@ -142,10 +160,7 @@ export default function ProductListScreen() {
         subtitle="등록된 품목을 관리하세요" 
         showBack 
         rightComponent={
-          <TouchableOpacity
-            style={styles.searchButton}
-            onPress={() => setSearchVisible(!searchVisible)}
-          >
+          <TouchableOpacity style={styles.searchButton} onPress={() => setSearchVisible(!searchVisible)}>
             <Ionicons name="search" size={20} color={COLORS.primary} />
           </TouchableOpacity>
         }
@@ -153,7 +168,7 @@ export default function ProductListScreen() {
 
       {searchVisible && (
         <SearchBar
-          placeholder="제품 검색..."
+          placeholder="품목명, 코드, 그룹, 바코드 검색..."
           value={searchQuery}
           onChangeText={handleSearch}
         />
@@ -172,9 +187,7 @@ export default function ProductListScreen() {
             data={filteredProducts}
             renderItem={renderProductItem}
             keyExtractor={(item) => item.id}
-            refreshControl={
-              <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-            }
+            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContainer}
           />
@@ -193,78 +206,90 @@ export default function ProductListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  searchButton: {
-    padding: SIZES.sm,
-  },
-  content: {
-    flex: 1,
-  },
-  listContainer: {
-    padding: SIZES.md,
-    paddingBottom: 80,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  searchButton: { padding: SIZES.sm },
+  content: { flex: 1 },
+  listContainer: { padding: SIZES.md, paddingBottom: 80 },
   productItem: {
     backgroundColor: COLORS.surface,
     borderRadius: SIZES.radiusLG,
-    padding: SIZES.lg,
+    padding: SIZES.md,
     marginBottom: SIZES.md,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
-  productInfo: {
-    flex: 1,
-  },
+  productInfo: { flex: 1 },
   productHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SIZES.sm,
-  },
-  productCode: {
-    fontSize: SIZES.fontSM,
-    fontWeight: '600',
-    color: COLORS.primary,
-    backgroundColor: COLORS.primary + '15',
-    paddingHorizontal: SIZES.sm,
-    paddingVertical: SIZES.xs,
-    borderRadius: SIZES.radiusSM,
-    marginRight: SIZES.sm,
-  },
-  productGroup: {
-    fontSize: SIZES.fontSM,
-    fontWeight: '500',
-    color: COLORS.secondary,
-    backgroundColor: COLORS.secondary + '15',
-    paddingHorizontal: SIZES.sm,
-    paddingVertical: SIZES.xs,
-    borderRadius: SIZES.radiusSM,
+    alignItems: 'baseline',
+    marginBottom: SIZES.md,
   },
   productName: {
     fontSize: SIZES.fontLG,
     fontWeight: 'bold',
     color: COLORS.textPrimary,
-    marginBottom: SIZES.sm,
   },
-  productDetail: {
+  productCode: {
     fontSize: SIZES.fontSM,
     color: COLORS.textSecondary,
+    marginLeft: SIZES.xs,
   },
-  actionsContainer: {
+  detailGrid: {
+    marginBottom: SIZES.md,
+    gap: SIZES.sm,
+  },
+  detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SIZES.md,
   },
-  actionButton: {
-    padding: SIZES.xs,
+  icon: {
+    marginRight: SIZES.sm,
+  },
+  detailLabel: {
+    fontSize: SIZES.fontSM,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+    width: 70, // 고정 너비 부여
+  },
+  detailValue: {
+    fontSize: SIZES.fontSM,
+    color: COLORS.textPrimary,
+    flex: 1, // 남은 공간 차지
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    gap: SIZES.md,
+    marginTop: SIZES.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    paddingTop: SIZES.md,
+  },
+  priceBox: {
+    flex: 1,
+    alignItems: 'center',
+    padding: SIZES.sm,
+    borderRadius: SIZES.radius,
+    backgroundColor: COLORS.background,
+  },
+  priceLabel: {
+    fontSize: SIZES.fontXS,
+    color: COLORS.textSecondary,
+    marginBottom: 2,
+  },
+  priceValue: {
+    fontSize: SIZES.fontMD,
+    fontWeight: 'bold',
+  },
+  inPrice: { color: COLORS.success },
+  outPrice: { color: COLORS.error },
+  deleteButton: {
+    padding: SIZES.sm,
+    marginLeft: SIZES.sm,
   },
   emptyContainer: {
     flex: 1,

@@ -85,30 +85,42 @@ export default function ClientListScreen() {
   };
 
   const handleEdit = (client: Client) => {
-    navigation.navigate('ClientForm', { clientId: client.id });
+    navigation.navigate('ClientForm', { client: client });
   };
 
   const renderClientItem = ({ item }: { item: Client }) => (
-    <View style={styles.clientItem}>
+    <TouchableOpacity style={styles.clientItem} onPress={() => handleEdit(item)} activeOpacity={0.7}>
       <View style={styles.clientInfo}>
         <View style={styles.clientHeader}>
-          <Text style={styles.clientCode}>{item.code}</Text>
+          <View style={[styles.typeBadge, { backgroundColor: item.type === '매입처' ? '#e0f2fe' : '#ffedd5' }]}>
+            <Text style={[styles.typeText, { color: item.type === '매입처' ? '#0c4a6e' : '#9a3412' }]}>{item.type}</Text>
+          </View>
           <Text style={styles.clientName}>{item.name}</Text>
+          <Text style={styles.clientCode}>({item.code})</Text>
         </View>
         <View style={styles.clientDetails}>
-          <Text style={styles.clientDetail}>대표자: {item.representative}</Text>
-          <Text style={styles.clientDetail}>전화: {item.phone}</Text>
+          <View style={styles.detailRow}>
+            <Ionicons name="person-outline" size={14} color={COLORS.textSecondary} />
+            <Text style={styles.clientDetail}>{item.representative || 'N/A'}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Ionicons name="call-outline" size={14} color={COLORS.textSecondary} />
+            <Text style={styles.clientDetail}>{item.phone || 'N/A'}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Ionicons name="mail-outline" size={14} color={COLORS.textSecondary} />
+            <Text style={styles.clientDetail}>{item.email || 'N/A'}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Ionicons name="location-outline" size={14} color={COLORS.textSecondary} />
+            <Text style={styles.clientDetail} numberOfLines={1}>{item.address || 'N/A'}</Text>
+          </View>
         </View>
       </View>
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity style={styles.actionButton} onPress={() => handleEdit(item)}>
-          <Ionicons name="pencil" size={20} color={COLORS.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton} onPress={() => handleDelete(item.id)}>
-          <Ionicons name="trash-outline" size={20} color={COLORS.error} />
-        </TouchableOpacity>
-      </View>
-    </View>
+      <TouchableOpacity style={styles.deleteButton} onPress={(e) => { e.stopPropagation(); handleDelete(item.id); }}>
+        <Ionicons name="trash-outline" size={22} color={COLORS.error} />
+      </TouchableOpacity>
+    </TouchableOpacity>
   );
 
   if (isLoading && !clients) {
@@ -150,7 +162,7 @@ export default function ClientListScreen() {
 
       {searchVisible && (
         <SearchBar
-          placeholder="거래처 검색..."
+          placeholder="거래처, 코드, 대표자 검색..."
           value={searchQuery}
           onChangeText={handleSearch}
         />
@@ -207,15 +219,14 @@ const styles = StyleSheet.create({
   clientItem: {
     backgroundColor: COLORS.surface,
     borderRadius: SIZES.radiusLG,
-    padding: SIZES.lg,
+    padding: SIZES.md,
     marginBottom: SIZES.md,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
   clientInfo: {
@@ -224,38 +235,44 @@ const styles = StyleSheet.create({
   clientHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SIZES.sm,
+    marginBottom: SIZES.md,
   },
-  clientCode: {
-    fontSize: SIZES.fontSM,
-    fontWeight: '600',
-    color: COLORS.primary,
-    backgroundColor: COLORS.primary + '15',
+  typeBadge: {
     paddingHorizontal: SIZES.sm,
-    paddingVertical: SIZES.xs,
-    borderRadius: SIZES.radiusSM,
+    paddingVertical: 2,
+    borderRadius: SIZES.radius,
     marginRight: SIZES.sm,
+  },
+  typeText: {
+    fontSize: SIZES.fontXS,
+    fontWeight: '600',
   },
   clientName: {
     fontSize: SIZES.fontLG,
     fontWeight: 'bold',
     color: COLORS.textPrimary,
-    flex: 1,
+  },
+  clientCode: {
+    fontSize: SIZES.fontSM,
+    color: COLORS.textSecondary,
+    marginLeft: SIZES.xs,
   },
   clientDetails: {
-    gap: SIZES.xs,
+    gap: SIZES.sm,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SIZES.sm,
   },
   clientDetail: {
     fontSize: SIZES.fontSM,
     color: COLORS.textSecondary,
+    flex: 1,
   },
-  actionsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SIZES.md,
-  },
-  actionButton: {
-    padding: SIZES.xs,
+  deleteButton: {
+    padding: SIZES.sm,
+    marginLeft: SIZES.sm,
   },
   emptyContainer: {
     flex: 1,

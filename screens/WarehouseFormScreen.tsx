@@ -8,56 +8,65 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { toast } from 'sonner-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 import Header from '../components/Header';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FormSelector from '../components/FormSelector';
 import { COLORS, SIZES } from '../constants';
-import { createWarehouseTransaction, getProducts, getClients } from '../lib/api';
-import { useWarehouseForm } from '../context/WarehouseFormContext';
+import { createWarehouseRequest, getProducts, getClients } from '../lib/api';
+import { Product, Client } from '../types';
 
 type WarehouseFormData = {
-  type: 'IN' | 'OUT';
+  type: 'inbound' | 'outbound';
   quantity: string;
   notes: string;
-  destination: string;
+  scheduledDateTime: Date;
+};
+
+type RouteParams = {
+  selectedProduct?: Product;
+  selectedClient?: Client;
 };
 
 export default function WarehouseFormScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const queryClient = useQueryClient();
-  const { selectedProduct, selectedClient, setFieldValue } = useWarehouseForm();
+  
+  const params = (route.params || {}) as RouteParams;
+
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+
+  const [formData, setFormData] = useState<WarehouseFormData>({
+    type: 'inbound',
+    quantity: '',
+    notes: '',
+    scheduledDateTime: new Date(),
+  });
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
-    // 화면을 벗어날 때 컨텍스트 상태를 초기화하여 다른 폼에 영향을 주지 않도록 합니다.
-    return () => {
-      setFieldValue('selectedProduct', null);
-      setFieldValue('selectedClient', null);
-    };
-  }, [setFieldValue]);
+    if (params.selectedProduct) setSelectedProduct(params.selectedProduct);
+    if (params.selectedClient) setSelectedClient(params.selectedClient);
+  }, [params]);
 
   const { data: products, isLoading: isLoadingProducts } = useQuery({ queryKey: ['products'], queryFn: getProducts });
   const { data: clients, isLoading: isLoadingClients } = useQuery({ queryKey: ['clients'], queryFn: getClients });
 
-  const [formData, setFormData] = useState<WarehouseFormData>({
-    type: 'IN',
-    quantity: '',
-    notes: '',
-    destination: '',
-  });
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
-
-  const { mutate: saveTransaction, isPending: isSaving } = useMutation({
-    mutationFn: createWarehouseTransaction,
+  const { mutate: saveRequest, isPending: isSaving } = useMutation({
+    mutationFn: createWarehouseRequest,
     onSuccess: () => {
       toast.success('입출고 요청이 성공적으로 등록되었습니다.');
       queryClient.invalidateQueries({ queryKey: ['warehouseRequests'] });
-      queryClient.invalidateQueries({ queryKey: ['warehouseCurrent'] });
       navigation.goBack();
     },
     onError: (error) => {
@@ -72,43 +81,51 @@ export default function WarehouseFormScreen() {
     if (!formData.quantity.trim() || isNaN(Number(formData.quantity)) || Number(formData.quantity) <= 0) {
       newErrors.quantity = '올바른 수량을 입력해주세요.';
     }
-    if (formData.type === 'OUT' && !formData.destination.trim()) {
-      newErrors.destination = '목적지를 입력해주세요.';
-    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleInputChange = (field: keyof WarehouseFormData, value: string) => {
+  const handleInputChange = (field: keyof Omit<WarehouseFormData, 'scheduledDateTime'>, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
   };
 
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    const currentDate = selectedDate || formData.scheduledDateTime;
+    setShowDatePicker(Platform.OS === 'ios');
+    setFormData(prev => ({ ...prev, scheduledDateTime: currentDate }));
+  };
+
   const handleSubmit = () => {
     if (!validateForm()) {
-      toast.error('입력 정보를 확인해주세요.');
+      toast.error('필수 입력 항목을 확인해주세요.');
       return;
     }
-    const transactionData = {
+    const requestData = {
       type: formData.type,
-      productName: selectedProduct!.name,
-      category: selectedProduct!.group,
-      client: selectedClient!.name,
+      itemCode: selectedProduct!.code,
+      itemName: selectedProduct!.name,
+      specification: selectedProduct!.specification,
       quantity: Number(formData.quantity),
+      companyCode: selectedClient!.code,
+      companyName: selectedClient!.name,
+      scheduledDateTime: formData.scheduledDateTime.toISOString(),
       notes: formData.notes,
-      location: '',
-      destination: formData.type === 'OUT' ? formData.destination : undefined,
     };
-    saveTransaction(transactionData);
+    saveRequest(requestData);
+  };
+
+  const formatDateTime = (date: Date) => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
   };
 
   if (isLoadingProducts || isLoadingClients) {
-    return <LoadingSpinner />;
+    return <SafeAreaView style={styles.container}><LoadingSpinner /></SafeAreaView>;
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header title="입출고 등록" showBack />
+      <Header title="입출고 요청 등록" showBack />
       <KeyboardAvoidingView style={styles.keyboardView} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           <View style={styles.form}>
@@ -116,16 +133,16 @@ export default function WarehouseFormScreen() {
               <Text style={styles.label}>작업 유형 *</Text>
               <View style={styles.typeSelector}>
                 <TouchableOpacity
-                  style={[styles.typeButton, formData.type === 'IN' && styles.typeButtonActive]}
-                  onPress={() => handleInputChange('type', 'IN')}
+                  style={[styles.typeButton, formData.type === 'inbound' && styles.typeButtonActive]}
+                  onPress={() => setFormData(prev => ({ ...prev, type: 'inbound' }))}
                 >
-                  <Text style={[styles.typeButtonText, formData.type === 'IN' && styles.typeButtonTextActive]}>입고</Text>
+                  <Text style={[styles.typeButtonText, formData.type === 'inbound' && styles.typeButtonTextActive]}>입고</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.typeButton, formData.type === 'OUT' && styles.typeButtonActive]}
-                  onPress={() => handleInputChange('type', 'OUT')}
+                  style={[styles.typeButton, formData.type === 'outbound' && styles.typeButtonActive]}
+                  onPress={() => setFormData(prev => ({ ...prev, type: 'outbound' }))}
                 >
-                  <Text style={[styles.typeButtonText, formData.type === 'OUT' && styles.typeButtonTextActive]}>출고</Text>
+                  <Text style={[styles.typeButtonText, formData.type === 'outbound' && styles.typeButtonTextActive]}>출고</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -134,26 +151,16 @@ export default function WarehouseFormScreen() {
               label="품목"
               value={selectedProduct?.name}
               placeholder="품목을 선택하세요"
-              onPress={() => navigation.navigate('Selection', { 
-                title: '품목 선택', 
-                items: products || [], 
-                returnKey: 'selectedProduct',
-              })}
-              required
-              error={errors.product}
+              onPress={() => navigation.navigate('Selection', { title: '품목 선택', items: products || [], returnKey: 'selectedProduct' })}
+              required error={errors.product}
             />
 
             <FormSelector
               label="거래처"
               value={selectedClient?.name}
               placeholder="거래처를 선택하세요"
-              onPress={() => navigation.navigate('Selection', { 
-                title: '거래처 선택', 
-                items: clients || [], 
-                returnKey: 'selectedClient',
-              })}
-              required
-              error={errors.client}
+              onPress={() => navigation.navigate('Selection', { title: '거래처 선택', items: clients || [], returnKey: 'selectedClient' })}
+              required error={errors.client}
             />
 
             <View style={styles.inputContainer}>
@@ -169,19 +176,21 @@ export default function WarehouseFormScreen() {
               {errors.quantity && <Text style={styles.errorText}>{errors.quantity}</Text>}
             </View>
 
-            {formData.type === 'OUT' && (
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>목적지 *</Text>
-                <TextInput
-                  style={[styles.input, errors.destination && styles.inputError]}
-                  placeholder="목적지를 입력하세요"
-                  placeholderTextColor={COLORS.textMuted}
-                  value={formData.destination}
-                  onChangeText={(value) => handleInputChange('destination', value)}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>예정일시 *</Text>
+              <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.input}>
+                <Text style={styles.dateText}>{formatDateTime(formData.scheduledDateTime)}</Text>
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={formData.scheduledDateTime}
+                  mode="datetime"
+                  display="default"
+                  onChange={onDateChange}
+                  locale="ko-KR"
                 />
-                {errors.destination && <Text style={styles.errorText}>{errors.destination}</Text>}
-              </View>
-            )}
+              )}
+            </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>비고</Text>
@@ -218,7 +227,8 @@ const styles = StyleSheet.create({
   inputContainer: { marginBottom: SIZES.lg },
   label: { fontSize: SIZES.fontSM, fontWeight: '600', color: COLORS.textPrimary, marginBottom: SIZES.sm },
   required: { color: COLORS.error },
-  input: { height: SIZES.inputHeight, borderWidth: 1, borderColor: COLORS.border, borderRadius: SIZES.radiusMD, paddingHorizontal: SIZES.md, fontSize: SIZES.fontMD, backgroundColor: COLORS.surface, color: COLORS.textPrimary },
+  input: { height: SIZES.inputHeight, borderWidth: 1, borderColor: COLORS.border, borderRadius: SIZES.radiusMD, paddingHorizontal: SIZES.md, fontSize: SIZES.fontMD, backgroundColor: COLORS.surface, color: COLORS.textPrimary, justifyContent: 'center' },
+  dateText: { fontSize: SIZES.fontMD, color: COLORS.textPrimary },
   multilineInput: { height: 80, paddingTop: SIZES.md, textAlignVertical: 'top' },
   inputError: { borderColor: COLORS.error },
   errorText: { fontSize: SIZES.fontXS, color: COLORS.error, marginTop: SIZES.xs },

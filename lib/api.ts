@@ -150,9 +150,17 @@ export const getWarehouseRequests = async (): Promise<WarehouseRequestItem[]> =>
   return response.data;
 };
 
-export const createWarehouseTransaction = async (transactionData: Omit<WarehouseItem, 'id' | 'status' | 'createdAt' | 'updatedAt'>) => {
-  if (MOCK_MODE) return { ...transactionData, id: 'new-transaction', status: 'PENDING', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-  const response = await apiClient.post('/warehouse', transactionData);
+export const createWarehouseRequest = async (requestData: Omit<WarehouseRequestItem, 'id' | 'status'>) => {
+  if (MOCK_MODE) {
+    const newRequest = { 
+      ...requestData, 
+      id: `req-${Date.now()}`, 
+      status: 'pending' as const 
+    };
+    MOCK_WAREHOUSE_REQUESTS.unshift(newRequest);
+    return newRequest;
+  }
+  const response = await apiClient.post('/warehouse/requests', requestData);
   return response.data;
 };
 

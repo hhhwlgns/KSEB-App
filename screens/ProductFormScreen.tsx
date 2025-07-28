@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { toast } from 'sonner-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -21,30 +20,30 @@ import { COLORS, SIZES } from '../constants';
 import { getProductById, createProduct, updateProduct } from '../lib/api';
 import { Product } from '../types';
 
-type ProductFormData = Omit<Product, 'id' | 'createdAt' | 'inPrice' | 'outPrice'> & {
-  inPrice: string;
-  outPrice: string;
+type ProductFormData = Omit<Product, 'id' | 'createdAt' | 'inboundPrice' | 'outboundPrice'> & {
+  inboundPrice: string;
+  outboundPrice: string;
 };
-type RouteParams = { productId?: string };
+type RouteParams = { product?: Product };
 
 export default function ProductFormScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { productId } = (route.params || {}) as RouteParams;
-  const isEditMode = !!productId;
+  const { product } = (route.params || {}) as RouteParams;
+  const isEditMode = !!product;
 
   const queryClient = useQueryClient();
 
   const { data: existingProduct, isLoading: isLoadingProduct } = useQuery({
-    queryKey: ['products', productId],
-    queryFn: () => getProductById(productId!),
+    queryKey: ['products', product?.id],
+    queryFn: () => getProductById(product!.id),
     enabled: isEditMode,
   });
 
   const { mutate: saveProduct, isPending: isSaving } = useMutation({
     mutationFn: (productData: Omit<Product, 'id' | 'createdAt'>) => 
       isEditMode 
-        ? updateProduct({ ...productData, id: productId }) 
+        ? updateProduct({ ...productData, id: product.id }) 
         : createProduct(productData),
     onSuccess: () => {
       toast.success(`품목이 성공적으로 ${isEditMode ? '수정' : '등록'}되었습니다`);
@@ -57,25 +56,27 @@ export default function ProductFormScreen() {
   });
 
   const [formData, setFormData] = useState<ProductFormData>({
-    code: '', name: '', group: '', specification: '', barcode: '', inPrice: '', outPrice: '',
+    code: '', name: '', group: '', specification: '', barcode: '', inboundPrice: '', outboundPrice: '', notes: '',
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
-    if (isEditMode && existingProduct) {
+    if (isEditMode && product) {
       setFormData({
-        ...existingProduct,
-        inPrice: String(existingProduct.inPrice),
-        outPrice: String(existingProduct.outPrice),
+        ...product,
+        inboundPrice: String(product.inboundPrice || ''),
+        outboundPrice: String(product.outboundPrice || ''),
+        notes: product.notes || '',
       });
     }
-  }, [existingProduct, isEditMode]);
+  }, [product, isEditMode]);
 
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {};
+    if (!formData.code.trim()) newErrors.code = '품목코드는 필수입니다.';
     if (!formData.name.trim()) newErrors.name = '품목명은 필수입니다.';
-    if (formData.inPrice.trim() && (isNaN(Number(formData.inPrice)) || Number(formData.inPrice) < 0)) newErrors.inPrice = '올바른 입고단가를 입력해주세요.';
-    if (formData.outPrice.trim() && (isNaN(Number(formData.outPrice)) || Number(formData.outPrice) < 0)) newErrors.outPrice = '올바른 출고단가를 입력해주세요.';
+    if (formData.inboundPrice.trim() && (isNaN(Number(formData.inboundPrice)) || Number(formData.inboundPrice) < 0)) newErrors.inboundPrice = '올바른 입고단가를 입력해주세요.';
+    if (formData.outboundPrice.trim() && (isNaN(Number(formData.outboundPrice)) || Number(formData.outboundPrice) < 0)) newErrors.outboundPrice = '올바른 출고단가를 입력해주세요.';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -87,13 +88,13 @@ export default function ProductFormScreen() {
 
   const handleSubmit = () => {
     if (!validateForm()) {
-      toast.error('입력 정보를 확인해주세요.');
+      toast.error('필수 입력 항목을 확인해주세요.');
       return;
     }
     saveProduct({
       ...formData,
-      inPrice: Number(formData.inPrice),
-      outPrice: Number(formData.outPrice),
+      inboundPrice: Number(formData.inboundPrice) || 0,
+      outboundPrice: Number(formData.outboundPrice) || 0,
     });
   };
 
@@ -116,13 +117,14 @@ export default function ProductFormScreen() {
       <Text style={styles.label}>{label}{options?.required && <Text style={styles.required}> *</Text>}</Text>
       <TextInput
         style={[styles.input, errors[field] && styles.inputError, options?.multiline && styles.multilineInput]}
-        value={formData[field]}
-        onChangeText={(value) => handleInputChange(field, (field === 'inPrice' || field === 'outPrice') ? formatPriceInput(value) : value)}
+        value={String(formData[field] || '')}
+        onChangeText={(value) => handleInputChange(field, (field === 'inboundPrice' || field === 'outboundPrice') ? formatPriceInput(value) : value)}
         placeholder={placeholder}
         placeholderTextColor={COLORS.textMuted}
         keyboardType={options?.keyboardType || 'default'}
         multiline={options?.multiline}
-        maxLength={options?.maxLength}
+        numberOfLines={options?.multiline ? 3 : 1}
+        textAlignVertical={options?.multiline ? 'top' : 'center'}
         editable={!isSaving}
       />
       {errors[field] && <Text style={styles.errorText}>{errors[field]}</Text>}
@@ -135,30 +137,20 @@ export default function ProductFormScreen() {
       <KeyboardAvoidingView style={styles.keyboardView} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.form}>
-            {renderInput('품목코드', 'code', 'PRD001')}
-            {renderInput('품목명', 'name', '노트북 - ThinkPad X1', { required: true })}
-            {renderInput('품목그룹', 'group', '전자제품')}
-            {renderInput('규격', 'specification', '14인치, i7, 16GB RAM', { multiline: true })}
-            {renderInput('바코드', 'barcode', '1234567890123', { keyboardType: 'numeric', maxLength: 20 })}
-            {renderInput('입고단가', 'inPrice', '1200000', { keyboardType: 'numeric' })}
-            {renderInput('출고단가', 'outPrice', '1500000', { keyboardType: 'numeric' })}
-          </View>
-          <View style={styles.pricePreview}>
-            <Text style={styles.previewTitle}>가격 미리보기</Text>
-            <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>입고단가:</Text>
-              <Text style={styles.priceValue}>{formData.inPrice ? Number(formData.inPrice).toLocaleString('ko-KR') + '원' : '0원'}</Text>
-            </View>
-            <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>출고단가:</Text>
-              <Text style={styles.priceValue}>{formData.outPrice ? Number(formData.outPrice).toLocaleString('ko-KR') + '원' : '0원'}</Text>
-            </View>
-            {formData.inPrice && formData.outPrice && Number(formData.inPrice) > 0 && (
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>수익률:</Text>
-                <Text style={[styles.priceValue, styles.profitValue]}>{(((Number(formData.outPrice) - Number(formData.inPrice)) / Number(formData.inPrice)) * 100).toFixed(1)}%</Text>
+            {renderInput('품목코드', 'code', '예: PRD001', { required: true })}
+            {renderInput('품목명', 'name', '예: 씽크패드 X1 카본', { required: true })}
+            {renderInput('품목그룹', 'group', '예: 노트북')}
+            {renderInput('규격', 'specification', '예: 14인치, i7, 16GB RAM')}
+            {renderInput('바코드', 'barcode', '예: 1234567890123', { keyboardType: 'numeric', maxLength: 20 })}
+            <View style={styles.priceInputContainer}>
+              <View style={{flex: 1}}>
+                {renderInput('입고단가', 'inboundPrice', '0', { keyboardType: 'numeric' })}
               </View>
-            )}
+              <View style={{flex: 1}}>
+                {renderInput('출고단가', 'outboundPrice', '0', { keyboardType: 'numeric' })}
+              </View>
+            </View>
+            {renderInput('비고', 'notes', '제품 관련 비고사항을 입력하세요.', { multiline: true })}
           </View>
         </ScrollView>
         <View style={styles.buttonContainer}>
@@ -180,22 +172,20 @@ const styles = StyleSheet.create({
   content: { flex: 1 },
   form: { padding: SIZES.lg },
   inputContainer: { marginBottom: SIZES.lg },
-  label: { fontSize: SIZES.fontMD, fontWeight: '600', color: COLORS.textPrimary, marginBottom: SIZES.sm },
+  label: { fontSize: SIZES.fontSM, fontWeight: '600', color: COLORS.textPrimary, marginBottom: SIZES.sm },
   required: { color: COLORS.error },
-  input: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: SIZES.radiusMD, paddingHorizontal: SIZES.md, paddingVertical: SIZES.md, fontSize: SIZES.fontMD, color: COLORS.textPrimary },
+  input: { backgroundColor: COLORS.surface, height: SIZES.inputHeight, borderWidth: 1, borderColor: COLORS.border, borderRadius: SIZES.radiusMD, paddingHorizontal: SIZES.md, fontSize: SIZES.fontMD, color: COLORS.textPrimary },
   inputError: { borderColor: COLORS.error },
-  multilineInput: { height: 80, textAlignVertical: 'top' },
-  errorText: { fontSize: SIZES.fontSM, color: COLORS.error, marginTop: SIZES.xs },
-  pricePreview: { margin: SIZES.lg, marginTop: 0, backgroundColor: COLORS.surface, borderRadius: SIZES.radiusLG, padding: SIZES.lg, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
-  previewTitle: { fontSize: SIZES.fontLG, fontWeight: 'bold', color: COLORS.textPrimary, marginBottom: SIZES.md },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SIZES.sm },
-  priceLabel: { fontSize: SIZES.fontMD, color: COLORS.textSecondary },
-  priceValue: { fontSize: SIZES.fontMD, fontWeight: '600', color: COLORS.textPrimary },
-  profitValue: { color: COLORS.success },
+  multilineInput: { height: 80, textAlignVertical: 'top', paddingTop: SIZES.md },
+  errorText: { fontSize: SIZES.fontXS, color: COLORS.error, marginTop: SIZES.xs },
+  priceInputContainer: {
+    flexDirection: 'row',
+    gap: SIZES.md,
+  },
   buttonContainer: { flexDirection: 'row', padding: SIZES.lg, paddingTop: SIZES.md, gap: SIZES.md, backgroundColor: COLORS.surface, borderTopWidth: 1, borderTopColor: COLORS.border },
-  cancelButton: { flex: 1, backgroundColor: COLORS.surfaceHover, paddingVertical: SIZES.md, borderRadius: SIZES.radiusMD, alignItems: 'center' },
+  cancelButton: { flex: 1, height: SIZES.buttonHeight, backgroundColor: COLORS.surfaceHover, justifyContent: 'center', alignItems: 'center', borderRadius: SIZES.radiusMD, borderWidth: 1, borderColor: COLORS.border },
   cancelButtonText: { fontSize: SIZES.fontMD, fontWeight: '600', color: COLORS.textSecondary },
-  submitButton: { flex: 2, backgroundColor: COLORS.primary, paddingVertical: SIZES.md, borderRadius: SIZES.radiusMD, alignItems: 'center' },
+  submitButton: { flex: 2, height: SIZES.buttonHeight, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', borderRadius: SIZES.radiusMD },
   submitButtonDisabled: { backgroundColor: COLORS.textMuted },
   submitButtonText: { fontSize: SIZES.fontMD, fontWeight: '600', color: 'white' },
 });

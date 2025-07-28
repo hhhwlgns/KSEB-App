@@ -9,6 +9,7 @@ export interface Client {
   id: string;
   code: string;
   name: string;
+  type: '매입처' | '납품처';
   representative: string;
   phone: string;
   email: string;
@@ -24,57 +25,72 @@ export interface Product {
   group: string;
   specification: string;
   barcode: string;
-  inPrice: number;
-  outPrice: number;
+  inboundPrice: number;
+  outboundPrice: number;
+  notes?: string;
   createdAt: string;
 }
 
 export interface WarehouseItem {
   id: string;
-  type: 'IN' | 'OUT';
+  type: 'inbound' | 'outbound';
   productName: string;
-  category: string;
+  sku: string;
+  individualCode: string;
+  specification: string;
   quantity: number;
   location: string;
-  client: string;
+  companyName: string;
+  companyCode: string;
+  status: 'completed' | 'in_progress' | 'pending';
+  destination?: string;
+  dateTime: string;
   notes?: string;
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'APPROVED' | 'REJECTED';
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface WarehouseHistoryItem {
   id: string;
-  type: 'IN' | 'OUT';
+  type: 'inbound' | 'outbound';
   productName: string;
+  sku: string;
+  individualCode: string;
+  specification: string;
   quantity: number;
-  manager: string;
-  completedAt: string;
+  location: string;
+  companyName: string;
+  companyCode: string;
+  status: 'completed' | 'in_progress' | 'pending';
+  destination?: string;
+  dateTime: string;
+  notes?: string;
+  manager?: string; // 담당자 정보 추가
 }
 
 export interface WarehouseRequestItem {
   id: string;
-  type: 'IN' | 'OUT';
-  productName: string;
-  category: string;
+  type: 'inbound' | 'outbound';
+  itemCode: string;
+  itemName: string;
+  specification: string;
   quantity: number;
-  location: string;
-  client: string;
-  notes?: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  createdAt: string;
-  updatedAt: string;
+  companyCode: string;
+  companyName: string;
+  scheduledDateTime: string;
+  notes: string;
+  status: 'pending' | 'approved' | 'rejected';
 }
 
 export interface InventoryItem {
   id: string;
-  productCode: string;
-  productName: string;
-  category: string;
+  name: string;
+  sku: string;
+  specification: string;
   quantity: number;
+  inboundScheduled: number;
+  outboundScheduled: number;
   location: string;
-  lastUpdated: string;
-  client: string;
+  status: '정상' | '부족' | '위험';
+  lastUpdate: string;
 }
 
 export interface ApiResponse<T> {
