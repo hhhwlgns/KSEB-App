@@ -46,6 +46,7 @@ export default function WarehouseHistoryScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeType, setActiveType] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
+  const [searchVisible, setSearchVisible] = useState(false);
 
   useEffect(() => {
     if (historyItems) {
@@ -61,10 +62,10 @@ export default function WarehouseHistoryScreen() {
       if (searchQuery.trim()) {
         const lowercasedQuery = searchQuery.toLowerCase();
         filtered = filtered.filter(item =>
-          item.productName.toLowerCase().includes(lowercasedQuery) ||
-          item.sku.toLowerCase().includes(lowercasedQuery) ||
-          item.companyName.toLowerCase().includes(lowercasedQuery) ||
-          item.individualCode.toLowerCase().includes(lowercasedQuery)
+          (item.productName || '').toLowerCase().includes(lowercasedQuery) ||
+          (item.sku || '').toLowerCase().includes(lowercasedQuery) ||
+          (item.companyName || '').toLowerCase().includes(lowercasedQuery) ||
+          (item.individualCode || '').toLowerCase().includes(lowercasedQuery)
         );
       }
       
@@ -156,22 +157,35 @@ export default function WarehouseHistoryScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header title="입출고 내역" subtitle="완료된 입출고 내역" showBack />
+      <Header 
+        title="입출고 내역" 
+        subtitle="완료된 입출고 내역" 
+        showBack
+        rightComponent={
+          <TouchableOpacity style={styles.searchButton} onPress={() => setSearchVisible(!searchVisible)}>
+            <Ionicons name={searchVisible ? "close" : "search"} size={20} color={COLORS.primary} />
+          </TouchableOpacity>
+        }
+      />
       
-      <CollapsibleSection title="검색 및 필터">
+      <CollapsibleSection title="필터" isCollapsed={searchVisible}>
         <View style={styles.toolbar}>
-          <SearchBar
-            placeholder="품목명, SKU, 개별코드, 거래처 검색..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            containerStyle={{ marginBottom: SIZES.md }}
-          />
           <Text style={styles.filterTitle}>유형</Text>
           {renderFilterChips(FILTER_OPTIONS.type, activeType, setActiveType)}
           <Text style={styles.filterTitle}>상태</Text>
           {renderFilterChips(FILTER_OPTIONS.status, activeStatus, setActiveStatus)}
         </View>
       </CollapsibleSection>
+
+      {searchVisible && (
+        <View style={styles.searchBarContainer}>
+          <SearchBar
+            placeholder="품목명, SKU, 개별코드, 거래처 검색..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+      )}
 
       <FlatList
         data={filteredItems}
@@ -194,6 +208,12 @@ export default function WarehouseHistoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  searchButton: { padding: SIZES.sm },
+  searchBarContainer: {
+    paddingHorizontal: SIZES.md,
+    paddingBottom: SIZES.md,
+    backgroundColor: COLORS.surface,
+  },
   toolbar: {
     paddingHorizontal: SIZES.md,
     paddingBottom: SIZES.md,

@@ -6,7 +6,6 @@ import Header from '../components/Header';
 import SearchBar from '../components/SearchBar';
 import { COLORS, SIZES } from '../constants';
 import { Ionicons } from '@expo/vector-icons';
-import { useWarehouseForm } from '../context/WarehouseFormContext';
 import { Product, Client } from '../types';
 
 type Item = Product | Client;
@@ -14,7 +13,7 @@ type Item = Product | Client;
 type SelectionScreenParams = {
   title: string;
   items: Item[];
-  returnKey: 'selectedProduct' | 'selectedClient';
+  onSelect: (item: Item) => void;
 };
 
 type SelectionScreenRouteProp = RouteProp<{ params: SelectionScreenParams }, 'params'>;
@@ -22,8 +21,7 @@ type SelectionScreenRouteProp = RouteProp<{ params: SelectionScreenParams }, 'pa
 export default function SelectionScreen() {
   const navigation = useNavigation();
   const route = useRoute<SelectionScreenRouteProp>();
-  const { title, items = [], returnKey } = route.params;
-  const { setFieldValue } = useWarehouseForm();
+  const { title, items = [], onSelect } = route.params;
 
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -40,7 +38,7 @@ export default function SelectionScreen() {
   }, [items, searchQuery]);
 
   const handleSelect = (item: Item) => {
-    setFieldValue(returnKey, item);
+    onSelect(item);
     navigation.goBack();
   };
 

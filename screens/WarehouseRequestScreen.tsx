@@ -36,6 +36,7 @@ export default function WarehouseRequestScreen() {
   const [filteredRequests, setFilteredRequests] = useState<WarehouseRequestItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
+  const [searchVisible, setSearchVisible] = useState(false);
 
   useEffect(() => {
     if (requests) {
@@ -50,13 +51,12 @@ export default function WarehouseRequestScreen() {
       if (searchQuery.trim()) {
         const lowercasedQuery = searchQuery.toLowerCase();
         filtered = filtered.filter(item =>
-          item.itemName.toLowerCase().includes(lowercasedQuery) ||
-          item.itemCode.toLowerCase().includes(lowercasedQuery) ||
-          item.companyName.toLowerCase().includes(lowercasedQuery)
+          (item.itemName || '').toLowerCase().includes(lowercasedQuery) ||
+          (item.itemCode || '').toLowerCase().includes(lowercasedQuery) ||
+          (item.companyName || '').toLowerCase().includes(lowercasedQuery)
         );
       }
       
-      // Sort by scheduledDateTime descending
       filtered.sort((a, b) => new Date(b.scheduledDateTime).getTime() - new Date(a.scheduledDateTime).getTime());
 
       setFilteredRequests(filtered);
@@ -119,9 +119,28 @@ export default function WarehouseRequestScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header title="입출고 요청" subtitle="요청한 입출고 승인/거절 현황" showBack />
+      <Header 
+        title="입출고 요청" 
+        subtitle="요청한 입출고 승인/거절 현황" 
+        showBack
+        rightComponent={
+          <TouchableOpacity style={styles.searchButton} onPress={() => setSearchVisible(!searchVisible)}>
+            <Ionicons name={searchVisible ? "close" : "search"} size={20} color={COLORS.primary} />
+          </TouchableOpacity>
+        }
+      />
       
-      <View style={styles.toolbar}>
+      {searchVisible && (
+        <View style={styles.toolbar}>
+          <SearchBar
+            placeholder="품목명, 코드, 거래처 검색..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+      )}
+
+      <View style={styles.filterToolbar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
           {FILTER_OPTIONS.map(opt => (
             <TouchableOpacity 
@@ -133,12 +152,6 @@ export default function WarehouseRequestScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
-        <SearchBar
-          placeholder="품목명, 코드, 거래처 검색..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          containerStyle={{ flex: 1 }}
-        />
       </View>
 
       <FlatList
@@ -170,16 +183,22 @@ export default function WarehouseRequestScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  searchButton: { padding: SIZES.sm },
   toolbar: {
     paddingHorizontal: SIZES.md,
     paddingTop: SIZES.sm,
     paddingBottom: SIZES.md,
+    backgroundColor: COLORS.surface,
+  },
+  filterToolbar: {
+    paddingHorizontal: SIZES.md,
+    paddingVertical: SIZES.sm,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
   filterContainer: {
     gap: SIZES.sm,
-    marginBottom: SIZES.md,
+    paddingVertical: SIZES.sm,
   },
   filterChip: {
     paddingHorizontal: SIZES.md,

@@ -8,13 +8,12 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { toast } from 'sonner-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 
 import Header from '../components/Header';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -30,18 +29,10 @@ type WarehouseFormData = {
   scheduledDateTime: Date;
 };
 
-type RouteParams = {
-  selectedProduct?: Product;
-  selectedClient?: Client;
-};
-
 export default function WarehouseFormScreen() {
   const navigation = useNavigation();
-  const route = useRoute();
   const queryClient = useQueryClient();
   
-  const params = (route.params || {}) as RouteParams;
-
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
@@ -51,13 +42,15 @@ export default function WarehouseFormScreen() {
     notes: '',
     scheduledDateTime: new Date(),
   });
+  const [timeDigits, setTimeDigits] = useState('');
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
-    if (params.selectedProduct) setSelectedProduct(params.selectedProduct);
-    if (params.selectedClient) setSelectedClient(params.selectedClient);
-  }, [params]);
+    const date = new Date();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    setTimeDigits(hours + minutes);
+  }, []);
 
   const { data: products, isLoading: isLoadingProducts } = useQuery({ queryKey: ['products'], queryFn: getProducts });
   const { data: clients, isLoading: isLoadingClients } = useQuery({ queryKey: ['clients'], queryFn: getClients });
@@ -81,6 +74,9 @@ export default function WarehouseFormScreen() {
     if (!formData.quantity.trim() || isNaN(Number(formData.quantity)) || Number(formData.quantity) <= 0) {
       newErrors.quantity = '올바른 수량을 입력해주세요.';
     }
+    if (timeDigits.length !== 4) {
+      newErrors.time = '올바른 시간 형식(HH:MM)을 입력해주세요.';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -90,10 +86,38 @@ export default function WarehouseFormScreen() {
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
   };
 
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    const currentDate = selectedDate || formData.scheduledDateTime;
-    setShowDatePicker(Platform.OS === 'ios');
-    setFormData(prev => ({ ...prev, scheduledDateTime: currentDate }));
+  const handleTimeChange = (text: string) => {
+    const newDigits = text.replace(/[^0-9]/g, '');
+    if (newDigits.length > 4) return;
+
+    let hours = newDigits.slice(0, 2);
+    if (hours.length === 2 && parseInt(hours, 10) > 23) {
+      hours = '23';
+    }
+
+    let minutes = newDigits.slice(2, 4);
+    if (minutes.length === 2 && parseInt(minutes, 10) > 59) {
+      minutes = '59';
+    }
+
+    setTimeDigits(hours + minutes);
+    if (errors.time) setErrors(prev => ({ ...prev, time: '' }));
+  };
+
+  const showDatePicker = () => {
+    DateTimePickerAndroid.open({
+      value: formData.scheduledDateTime,
+      onChange: (event, selectedDate) => {
+        if (event.type === 'set' && selectedDate) {
+          const newDate = new Date(formData.scheduledDateTime);
+          newDate.setFullYear(selectedDate.getFullYear());
+          newDate.setMonth(selectedDate.getMonth());
+          newDate.setDate(selectedDate.getDate());
+          setFormData(prev => ({ ...prev, scheduledDateTime: newDate }));
+        }
+      },
+      mode: 'date',
+    });
   };
 
   const handleSubmit = () => {
@@ -101,6 +125,12 @@ export default function WarehouseFormScreen() {
       toast.error('필수 입력 항목을 확인해주세요.');
       return;
     }
+    const hours = parseInt(timeDigits.slice(0, 2), 10);
+    const minutes = parseInt(timeDigits.slice(2, 4), 10);
+    const finalDateTime = new Date(formData.scheduledDateTime);
+    finalDateTime.setHours(hours);
+    finalDateTime.setMinutes(minutes);
+
     const requestData = {
       type: formData.type,
       itemCode: selectedProduct!.code,
@@ -109,14 +139,19 @@ export default function WarehouseFormScreen() {
       quantity: Number(formData.quantity),
       companyCode: selectedClient!.code,
       companyName: selectedClient!.name,
-      scheduledDateTime: formData.scheduledDateTime.toISOString(),
+      scheduledDateTime: finalDateTime.toISOString(),
       notes: formData.notes,
     };
     saveRequest(requestData);
   };
 
-  const formatDateTime = (date: Date) => {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  const formatDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  
+  const formatTime = (digits: string) => {
+    if (digits.length > 2) {
+      return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+    }
+    return digits;
   };
 
   if (isLoadingProducts || isLoadingClients) {
@@ -147,61 +182,29 @@ export default function WarehouseFormScreen() {
               </View>
             </View>
 
-            <FormSelector
-              label="품목"
-              value={selectedProduct?.name}
-              placeholder="품목을 선택하세요"
-              onPress={() => navigation.navigate('Selection', { title: '품목 선택', items: products || [], returnKey: 'selectedProduct' })}
-              required error={errors.product}
-            />
-
-            <FormSelector
-              label="거래처"
-              value={selectedClient?.name}
-              placeholder="거래처를 선택하세요"
-              onPress={() => navigation.navigate('Selection', { title: '거래처 선택', items: clients || [], returnKey: 'selectedClient' })}
-              required error={errors.client}
-            />
+            <FormSelector label="품목" value={selectedProduct?.name} placeholder="품목을 선택하세요" onPress={() => navigation.navigate('Selection', { title: '품목 선택', items: products || [], onSelect: (item) => setSelectedProduct(item as Product) })} required error={errors.product} />
+            <FormSelector label="거래처" value={selectedClient?.name} placeholder="거래처를 선택하세요" onPress={() => navigation.navigate('Selection', { title: '거래처 선택', items: clients || [], onSelect: (item) => setSelectedClient(item as Client) })} required error={errors.client} />
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>수량 *</Text>
-              <TextInput
-                style={[styles.input, errors.quantity && styles.inputError]}
-                placeholder="수량을 입력하세요"
-                placeholderTextColor={COLORS.textMuted}
-                value={formData.quantity}
-                onChangeText={(value) => handleInputChange('quantity', value.replace(/[^0-9]/g, ''))}
-                keyboardType="numeric"
-              />
+              <TextInput style={[styles.input, errors.quantity && styles.inputError]} placeholder="수량을 입력하세요" placeholderTextColor={COLORS.textMuted} value={formData.quantity} onChangeText={(value) => handleInputChange('quantity', value.replace(/[^0-9]/g, ''))} keyboardType="numeric" />
               {errors.quantity && <Text style={styles.errorText}>{errors.quantity}</Text>}
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>예정일시 *</Text>
-              <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.input}>
-                <Text style={styles.dateText}>{formatDateTime(formData.scheduledDateTime)}</Text>
-              </TouchableOpacity>
-              {showDatePicker && (
-                <DateTimePicker
-                  value={formData.scheduledDateTime}
-                  mode="datetime"
-                  display="default"
-                  onChange={onDateChange}
-                  locale="ko-KR"
-                />
-              )}
+              <View style={styles.dateTimeContainer}>
+                <TouchableOpacity onPress={showDatePicker} style={[styles.input, styles.dateInput]}>
+                  <Text style={styles.dateText}>{formatDate(formData.scheduledDateTime)}</Text>
+                </TouchableOpacity>
+                <TextInput style={[styles.input, styles.timeInput, errors.time && styles.inputError]} placeholder="HH:MM" value={formatTime(timeDigits)} onChangeText={handleTimeChange} keyboardType="number-pad" maxLength={5} />
+              </View>
+              {errors.time && <Text style={styles.errorText}>{errors.time}</Text>}
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>비고</Text>
-              <TextInput
-                style={[styles.input, styles.multilineInput]}
-                placeholder="특이사항 (선택사항)"
-                placeholderTextColor={COLORS.textMuted}
-                value={formData.notes}
-                onChangeText={(value) => handleInputChange('notes', value)}
-                multiline
-              />
+              <TextInput style={[styles.input, styles.multilineInput]} placeholder="특이사항 (선택사항)" placeholderTextColor={COLORS.textMuted} value={formData.notes} onChangeText={(value) => handleInputChange('notes', value)} multiline />
             </View>
           </View>
         </ScrollView>
@@ -228,6 +231,9 @@ const styles = StyleSheet.create({
   label: { fontSize: SIZES.fontSM, fontWeight: '600', color: COLORS.textPrimary, marginBottom: SIZES.sm },
   required: { color: COLORS.error },
   input: { height: SIZES.inputHeight, borderWidth: 1, borderColor: COLORS.border, borderRadius: SIZES.radiusMD, paddingHorizontal: SIZES.md, fontSize: SIZES.fontMD, backgroundColor: COLORS.surface, color: COLORS.textPrimary, justifyContent: 'center' },
+  dateTimeContainer: { flexDirection: 'row', gap: SIZES.sm },
+  dateInput: { flex: 2, justifyContent: 'center', alignItems: 'center' },
+  timeInput: { flex: 1, textAlign: 'center' },
   dateText: { fontSize: SIZES.fontMD, color: COLORS.textPrimary },
   multilineInput: { height: 80, paddingTop: SIZES.md, textAlignVertical: 'top' },
   inputError: { borderColor: COLORS.error },

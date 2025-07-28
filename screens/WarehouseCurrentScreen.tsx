@@ -37,6 +37,7 @@ export default function WarehouseCurrentScreen() {
   const [filteredItems, setFilteredItems] = useState<WarehouseItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
+  const [searchVisible, setSearchVisible] = useState(false);
 
   useEffect(() => {
     if (items) {
@@ -49,9 +50,9 @@ export default function WarehouseCurrentScreen() {
       if (searchQuery.trim()) {
         const lowercasedQuery = searchQuery.toLowerCase();
         filtered = filtered.filter(item =>
-          item.productName.toLowerCase().includes(lowercasedQuery) ||
-          item.sku.toLowerCase().includes(lowercasedQuery) ||
-          item.companyName.toLowerCase().includes(lowercasedQuery)
+          (item.productName || '').toLowerCase().includes(lowercasedQuery) ||
+          (item.sku || '').toLowerCase().includes(lowercasedQuery) ||
+          (item.companyName || '').toLowerCase().includes(lowercasedQuery)
         );
       }
       
@@ -120,9 +121,28 @@ export default function WarehouseCurrentScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header title="입출고 현황" subtitle="현재 진행중인 입출고 목록" showBack />
+      <Header 
+        title="입출고 현황" 
+        subtitle="현재 진행중인 입출고 목록" 
+        showBack
+        rightComponent={
+          <TouchableOpacity style={styles.searchButton} onPress={() => setSearchVisible(!searchVisible)}>
+            <Ionicons name={searchVisible ? "close" : "search"} size={20} color={COLORS.primary} />
+          </TouchableOpacity>
+        }
+      />
       
-      <View style={styles.toolbar}>
+      {searchVisible && (
+        <View style={styles.toolbar}>
+          <SearchBar
+            placeholder="품목명, SKU, 거래처 검색..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+      )}
+
+      <View style={styles.filterToolbar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
           {FILTER_OPTIONS.map(opt => (
             <TouchableOpacity 
@@ -134,12 +154,6 @@ export default function WarehouseCurrentScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
-        <SearchBar
-          placeholder="품목명, SKU, 거래처 검색..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          containerStyle={{ flex: 1 }}
-        />
       </View>
 
       <FlatList
@@ -171,16 +185,22 @@ export default function WarehouseCurrentScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  searchButton: { padding: SIZES.sm },
   toolbar: {
     paddingHorizontal: SIZES.md,
     paddingTop: SIZES.sm,
     paddingBottom: SIZES.md,
+    backgroundColor: COLORS.surface,
+  },
+  filterToolbar: {
+    paddingHorizontal: SIZES.md,
+    paddingVertical: SIZES.sm,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
   filterContainer: {
     gap: SIZES.sm,
-    marginBottom: SIZES.md,
+    paddingVertical: SIZES.sm,
   },
   filterChip: {
     paddingHorizontal: SIZES.md,
