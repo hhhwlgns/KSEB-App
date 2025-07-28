@@ -16,6 +16,7 @@ import { useQuery } from '@tanstack/react-query';
 import Header from '../components/Header';
 import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
+import CollapsibleSection from '../components/CollapsibleSection';
 import { COLORS, SIZES } from '../constants';
 import { WarehouseItem } from '../types';
 import { getWarehouseCurrent } from '../lib/api';
@@ -232,16 +233,26 @@ export default function WarehouseCurrentScreen() {
         />
       )}
 
-      <View style={styles.filtersContainer}>
-        <Text style={styles.filterTitle}>유형</Text>
-        {renderFilterChips(FILTER_OPTIONS.type, selectedType, setSelectedType)}
-        
-        <Text style={styles.filterTitle}>상태</Text>
-        {renderFilterChips(FILTER_OPTIONS.status, selectedStatus, setSelectedStatus)}
-      </View>
+      <CollapsibleSection title="필터">
+        <View style={styles.filtersContainer}>
+          <Text style={styles.filterTitle}>유형</Text>
+          {renderFilterChips(FILTER_OPTIONS.type, selectedType, setSelectedType)}
+          
+          <Text style={styles.filterTitle}>상태</Text>
+          {renderFilterChips(FILTER_OPTIONS.status, selectedStatus, setSelectedStatus)}
+        </View>
+      </CollapsibleSection>
 
-      <View style={styles.content}>
-        {filteredItems.length === 0 ? (
+      <FlatList
+        data={filteredItems}
+        renderItem={renderWarehouseItem}
+        keyExtractor={(item) => item.id}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+        }
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContainer}
+        ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="cube-outline" size={48} color={COLORS.textMuted} />
             <Text style={styles.emptyText}>
@@ -251,19 +262,8 @@ export default function WarehouseCurrentScreen() {
               }
             </Text>
           </View>
-        ) : (
-          <FlatList
-            data={filteredItems}
-            renderItem={renderWarehouseItem}
-            keyExtractor={(item) => item.id}
-            refreshControl={
-              <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-            }
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContainer}
-          />
-        )}
-      </View>
+        }
+      />
 
       <TouchableOpacity
         style={styles.fab}
@@ -285,10 +285,7 @@ const styles = StyleSheet.create({
     padding: SIZES.sm,
   },
   filtersContainer: {
-    backgroundColor: COLORS.surface,
     paddingVertical: SIZES.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
   },
   filterTitle: {
     fontSize: SIZES.fontSM,
@@ -325,11 +322,9 @@ const styles = StyleSheet.create({
   filterChipTextActive: {
     color: 'white',
   },
-  content: {
-    flex: 1,
-  },
   listContainer: {
-    padding: SIZES.md,
+    paddingTop: SIZES.sm,
+    paddingHorizontal: SIZES.md,
     paddingBottom: 80, // FAB 공간 확보
   },
   itemCard: {

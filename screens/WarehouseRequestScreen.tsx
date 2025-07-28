@@ -16,6 +16,7 @@ import { useQuery } from '@tanstack/react-query';
 import Header from '../components/Header';
 import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
+import CollapsibleSection from '../components/CollapsibleSection';
 import { COLORS, SIZES } from '../constants';
 import { WarehouseRequestItem } from '../types';
 import { getWarehouseRequests } from '../lib/api';
@@ -279,29 +280,39 @@ export default function WarehouseRequestScreen() {
         />
       )}
 
-      <View style={styles.summaryContainer}>
-        <View style={styles.summaryItem}>
-          <Ionicons name="time" size={20} color={COLORS.statusPending} />
-          <Text style={styles.summaryCount}>{pendingCount}</Text>
-          <Text style={styles.summaryLabel}>승인 대기</Text>
+      <CollapsibleSection title="요약 및 필터">
+        <View style={styles.summaryContainer}>
+          <View style={styles.summaryItem}>
+            <Ionicons name="time" size={20} color={COLORS.statusPending} />
+            <Text style={styles.summaryCount}>{pendingCount}</Text>
+            <Text style={styles.summaryLabel}>승인 대기</Text>
+          </View>
+          <View style={styles.summaryItem}>
+            <Ionicons name="checkmark-circle" size={20} color={COLORS.statusCompleted} />
+            <Text style={styles.summaryCount}>{completedCount}</Text>
+            <Text style={styles.summaryLabel}>처리 완료</Text>
+          </View>
         </View>
-        <View style={styles.summaryItem}>
-          <Ionicons name="checkmark-done" size={20} color={COLORS.statusCompleted} />
-          <Text style={styles.summaryCount}>{completedCount}</Text>
-          <Text style={styles.summaryLabel}>처리 완료</Text>
+
+        <View style={styles.filtersContainer}>
+          <Text style={styles.filterTitle}>상태</Text>
+          {renderFilterChips(FILTER_OPTIONS.status, selectedStatus, setSelectedStatus)}
+          
+          <Text style={styles.filterTitle}>유형</Text>
+          {renderFilterChips(FILTER_OPTIONS.type, selectedType, setSelectedType)}
         </View>
-      </View>
+      </CollapsibleSection>
 
-      <View style={styles.filtersContainer}>
-        <Text style={styles.filterTitle}>상태</Text>
-        {renderFilterChips(FILTER_OPTIONS.status, selectedStatus, setSelectedStatus)}
-        
-        <Text style={styles.filterTitle}>유형</Text>
-        {renderFilterChips(FILTER_OPTIONS.type, selectedType, setSelectedType)}
-      </View>
-
-      <View style={styles.content}>
-        {filteredRequests.length === 0 ? (
+      <FlatList
+        data={filteredRequests}
+        renderItem={renderRequestItem}
+        keyExtractor={(item) => item.id}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+        }
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContainer}
+        ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="document-text-outline" size={48} color={COLORS.textMuted} />
             <Text style={styles.emptyText}>
@@ -314,19 +325,8 @@ export default function WarehouseRequestScreen() {
               앱에서 입출고 등록 시 자동으로 승인 요청이 생성됩니다.
             </Text>
           </View>
-        ) : (
-          <FlatList
-            data={filteredRequests}
-            renderItem={renderRequestItem}
-            keyExtractor={(item) => item.id}
-            refreshControl={
-              <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-            }
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContainer}
-          />
-        )}
-      </View>
+        }
+      />
 
       <TouchableOpacity
         style={styles.fab}
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
   summaryContainer: {
     flexDirection: 'row',
     paddingHorizontal: SIZES.lg,
-    paddingVertical: SIZES.md,
+    paddingTop: SIZES.md,
     gap: SIZES.md,
   },
   summaryItem: {
@@ -359,11 +359,8 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.radiusLG,
     padding: SIZES.md,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   summaryCount: {
     fontSize: SIZES.fontXL,
@@ -377,10 +374,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   filtersContainer: {
-    backgroundColor: COLORS.surface,
     paddingVertical: SIZES.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
   },
   filterTitle: {
     fontSize: SIZES.fontSM,
@@ -417,11 +411,9 @@ const styles = StyleSheet.create({
   filterChipTextActive: {
     color: 'white',
   },
-  content: {
-    flex: 1,
-  },
   listContainer: {
-    padding: SIZES.md,
+    paddingTop: SIZES.sm,
+    paddingHorizontal: SIZES.md,
     paddingBottom: 80, // FAB 공간 확보
   },
   requestCard: {

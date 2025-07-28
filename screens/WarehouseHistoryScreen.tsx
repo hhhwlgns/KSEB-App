@@ -15,6 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import Header from '../components/Header';
 import LoadingSpinner from '../components/LoadingSpinner';
+import CollapsibleSection from '../components/CollapsibleSection';
 import { COLORS, SIZES } from '../constants';
 import { WarehouseHistoryItem } from '../types';
 import { getWarehouseHistory } from '../lib/api';
@@ -148,31 +149,30 @@ export default function WarehouseHistoryScreen() {
     <SafeAreaView style={styles.container}>
       <Header title="입출고 내역" subtitle="완료된 입출고 내역" showBack />
 
-      <View style={styles.filtersContainer}>
-        {renderFilterChips()}
-      </View>
+      <CollapsibleSection title="필터">
+        <View style={styles.filtersContainer}>
+          {renderFilterChips()}
+        </View>
+      </CollapsibleSection>
 
-      <View style={styles.content}>
-        {filteredItems.length === 0 ? (
+      <FlatList
+        data={filteredItems}
+        renderItem={renderHistoryItem}
+        keyExtractor={(item) => item.id}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+        }
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContainer}
+        ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="document-text-outline" size={48} color={COLORS.textMuted} />
             <Text style={styles.emptyText}>
               {selectedType ? '조건에 맞는 내역이 없습니다.' : '완료된 입출고 내역이 없습니다.'}
             </Text>
           </View>
-        ) : (
-          <FlatList
-            data={filteredItems}
-            renderItem={renderHistoryItem}
-            keyExtractor={(item) => item.id}
-            refreshControl={
-              <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-            }
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContainer}
-          />
-        )}
-      </View>
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -183,10 +183,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   filtersContainer: {
-    backgroundColor: COLORS.surface,
     paddingVertical: SIZES.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
   },
   filterScrollView: {
   },
@@ -214,11 +211,9 @@ const styles = StyleSheet.create({
   filterChipTextActive: {
     color: 'white',
   },
-  content: {
-    flex: 1,
-  },
   listContainer: {
-    padding: SIZES.md,
+    paddingTop: SIZES.sm,
+    paddingHorizontal: SIZES.md,
   },
   itemCard: {
     backgroundColor: COLORS.surface,

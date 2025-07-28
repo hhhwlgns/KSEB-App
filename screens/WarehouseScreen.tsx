@@ -15,6 +15,13 @@ export default function WarehouseScreen() {
 
   const menuItems = [
     {
+      title: '입출고 요청',
+      subtitle: '요청한 입출고 승인/거절 현황',
+      icon: 'document-text',
+      onPress: () => navigation.navigate('WarehouseRequest' as never),
+      color: COLORS.statusPending,
+    },
+    {
       title: '입출고 현황',
       subtitle: '현재 예약 또는 진행중인 입출고 목록',
       icon: 'time',
@@ -27,13 +34,6 @@ export default function WarehouseScreen() {
       icon: 'checkmark-circle',
       onPress: () => navigation.navigate('WarehouseHistory' as never),
       color: COLORS.statusCompleted,
-    },
-    {
-      title: '입출고 요청',
-      subtitle: '요청한 입출고 승인/거절 현황',
-      icon: 'document-text',
-      onPress: () => navigation.navigate('WarehouseRequest' as never),
-      color: COLORS.statusPending,
     },
   ];
 

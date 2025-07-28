@@ -225,10 +225,10 @@ export default function App() {
         <SafeAreaProvider style={styles.container}>
           <AuthProvider>
             <WarehouseFormProvider>
-              <Toaster />
               <AppContent />
             </WarehouseFormProvider>
           </AuthProvider>
+          <Toaster position="top-center" duration={2000} />
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>

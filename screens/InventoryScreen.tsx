@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import Header from '../components/Header';
 import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
+import CollapsibleSection from '../components/CollapsibleSection';
 import { COLORS, SIZES } from '../constants';
 import { InventoryItem } from '../types';
 import { getInventory } from '../lib/api';
@@ -172,23 +173,25 @@ export default function InventoryScreen() {
         />
       )}
 
-      <View style={styles.summaryContainer}>
-        <View style={styles.summaryCard}>
-          <Ionicons name="cube" size={24} color={COLORS.primary} />
-          <Text style={styles.summaryValue}>{calculateTotalValue()}</Text>
-          <Text style={styles.summaryLabel}>총 재고량</Text>
+      <CollapsibleSection title="재고 요약">
+        <View style={styles.summaryContainer}>
+          <View style={styles.summaryCard}>
+            <Ionicons name="cube" size={24} color={COLORS.primary} />
+            <Text style={styles.summaryValue}>{calculateTotalValue()}</Text>
+            <Text style={styles.summaryLabel}>총 재고량</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Ionicons name="warning" size={24} color={COLORS.error} />
+            <Text style={styles.summaryValue}>{calculateLowStock()}</Text>
+            <Text style={styles.summaryLabel}>부족 품목</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Ionicons name="list" size={24} color={COLORS.success} />
+            <Text style={styles.summaryValue}>{filteredInventory.length}</Text>
+            <Text style={styles.summaryLabel}>품목 수</Text>
+          </View>
         </View>
-        <View style={styles.summaryCard}>
-          <Ionicons name="warning" size={24} color={COLORS.error} />
-          <Text style={styles.summaryValue}>{calculateLowStock()}</Text>
-          <Text style={styles.summaryLabel}>부족 품목</Text>
-        </View>
-        <View style={styles.summaryCard}>
-          <Ionicons name="list" size={24} color={COLORS.success} />
-          <Text style={styles.summaryValue}>{filteredInventory.length}</Text>
-          <Text style={styles.summaryLabel}>품목 수</Text>
-        </View>
-      </View>
+      </CollapsibleSection>
 
       <View style={styles.content}>
         {filteredInventory.length === 0 ? (
@@ -271,11 +274,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-  },
-  listTitle: {
-    fontSize: SIZES.fontLG,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
   },
   listContainer: {
     padding: SIZES.md,
