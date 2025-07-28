@@ -13,11 +13,14 @@ interface HeaderProps {
   title: string;
   subtitle?: string;
   showBack?: boolean;
+  onBackPress?: () => void;
   rightComponent?: React.ReactNode;
 }
 
-export default function Header({ title, subtitle, showBack = false, rightComponent }: HeaderProps) {
+export default function Header({ title, subtitle, showBack = false, onBackPress, rightComponent }: HeaderProps) {
   const navigation = useNavigation();
+
+  const handleBack = onBackPress || (() => navigation.goBack());
 
   return (
     <View style={styles.container}>
@@ -25,7 +28,7 @@ export default function Header({ title, subtitle, showBack = false, rightCompone
         {showBack && (
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={handleBack}
           >
             <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>

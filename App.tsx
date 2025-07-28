@@ -23,21 +23,19 @@ import WarehouseRequestScreen from './screens/WarehouseRequestScreen';
 import WarehouseFormScreen from './screens/WarehouseFormScreen';
 import InventoryScreen from './screens/InventoryScreen';
 import ProfileScreen from './screens/ProfileScreen';
-
 import WarehouseHistoryDetailScreen from './screens/WarehouseHistoryDetailScreen';
+import SelectionScreen from './screens/SelectionScreen';
 
 // Auth Context
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { WarehouseFormProvider } from './context/WarehouseFormContext';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // 네트워크가 불안정할 때 실패한 쿼리를 자동으로 재시도하는 횟수.
-      // 개발 중에는 0으로 설정하여 빠른 피드백을 받습니다.
       retry: 0,
     },
   },
@@ -109,7 +107,7 @@ function MainTabs() {
           fontSize: 12,
           fontWeight: '500',
         },
-        unmountOnBlur: true, // 잔상 문제 해결을 위해 포커스 잃으면 언마운트
+        unmountOnBlur: true,
       })}
     >
       <Tab.Screen 
@@ -204,8 +202,13 @@ function AppContent() {
             <Stack.Screen name="WarehouseCurrent" component={WarehouseCurrentScreen} />
             <Stack.Screen name="WarehouseHistory" component={WarehouseHistoryScreen} />
             <Stack.Screen name="WarehouseRequest" component={WarehouseRequestScreen} />
-            <Stack.Screen name="WarehouseForm" component={WarehouseFormScreen} />
             <Stack.Screen name="WarehouseHistoryDetail" component={WarehouseHistoryDetailScreen} />
+            <Stack.Screen name="WarehouseForm" component={WarehouseFormScreen} />
+            <Stack.Screen 
+              name="Selection" 
+              component={SelectionScreen} 
+              options={{ animation: 'slide_from_bottom' }}
+            />
           </>
         )}
       </Stack.Navigator>
@@ -221,8 +224,10 @@ export default function App() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider style={styles.container}>
           <AuthProvider>
-            <Toaster />
-            <AppContent />
+            <WarehouseFormProvider>
+              <Toaster />
+              <AppContent />
+            </WarehouseFormProvider>
           </AuthProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>

@@ -6,24 +6,39 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner-native';
 
 import Header from '../components/Header';
 import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { COLORS, SIZES } from '../constants';
 import { Client } from '../types';
-import { getClients } from '../lib/api';
+import { getClients, deleteClient } from '../lib/api';
 
 export default function ClientListScreen() {
   const navigation = useNavigation();
+  const queryClient = useQueryClient();
+
   const { data: clients, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['clients'],
     queryFn: getClients,
+  });
+
+  const { mutate: removeClient } = useMutation({
+    mutationFn: deleteClient,
+    onSuccess: () => {
+      toast.success('거래처가 삭제되었습니다.');
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+    },
+    onError: (error) => {
+      toast.error(error.message || '삭제 중 오류가 발생했습니다.');
+    },
   });
 
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
@@ -54,25 +69,49 @@ export default function ClientListScreen() {
     setFilteredClients(filtered);
   };
 
+  const handleDelete = (id: string) => {
+    Alert.alert(
+      '거래처 삭제',
+      '정말로 이 거래처를 삭제하시겠습니까?',
+      [
+        { text: '취소', style: 'cancel' },
+        { 
+          text: '삭제', 
+          onPress: () => removeClient(id),
+          style: 'destructive' 
+        },
+      ]
+    );
+  };
+
+  const handleEdit = (client: Client) => {
+    navigation.navigate('ClientForm', { clientId: client.id });
+  };
+
   const renderClientItem = ({ item }: { item: Client }) => (
-    <TouchableOpacity style={styles.clientItem} activeOpacity={0.7}>
-      <View style={styles.clientHeader}>
-        <Text style={styles.clientCode}>{item.code}</Text>
-        <Text style={styles.clientName}>{item.name}</Text>
+    <View style={styles.clientItem}>
+      <View style={styles.clientInfo}>
+        <View style={styles.clientHeader}>
+          <Text style={styles.clientCode}>{item.code}</Text>
+          <Text style={styles.clientName}>{item.name}</Text>
+        </View>
+        <View style={styles.clientDetails}>
+          <Text style={styles.clientDetail}>대표자: {item.representative}</Text>
+          <Text style={styles.clientDetail}>전화: {item.phone}</Text>
+        </View>
       </View>
-      <View style={styles.clientDetails}>
-        <Text style={styles.clientDetail}>대표자: {item.representative}</Text>
-        <Text style={styles.clientDetail}>전화: {item.phone}</Text>
-        <Text style={styles.clientDetail}>이메일: {item.email}</Text>
-        <Text style={styles.clientDetail}>주소: {item.address}</Text>
-        {item.notes && (
-          <Text style={styles.clientNotes}>비고: {item.notes}</Text>
-        )}
+      <View style={styles.actionsContainer}>
+        <TouchableOpacity style={styles.actionButton} onPress={() => handleEdit(item)}>
+          <Ionicons name="pencil" size={20} color={COLORS.primary} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionButton} onPress={() => handleDelete(item.id)}>
+          <Ionicons name="trash-outline" size={20} color={COLORS.error} />
+        </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
-  if (isLoading && !filteredClients.length) {
+  if (isLoading && !clients) {
     return (
       <SafeAreaView style={styles.container}>
         <Header 
@@ -163,7 +202,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: SIZES.md,
-    paddingBottom: 80, // FAB 공간 확보
+    paddingBottom: 80,
   },
   clientItem: {
     backgroundColor: COLORS.surface,
@@ -171,13 +210,16 @@ const styles = StyleSheet.create({
     padding: SIZES.lg,
     marginBottom: SIZES.md,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  clientInfo: {
+    flex: 1,
   },
   clientHeader: {
     flexDirection: 'row',
@@ -207,11 +249,13 @@ const styles = StyleSheet.create({
     fontSize: SIZES.fontSM,
     color: COLORS.textSecondary,
   },
-  clientNotes: {
-    fontSize: SIZES.fontSM,
-    color: COLORS.textMuted,
-    fontStyle: 'italic',
-    marginTop: SIZES.xs,
+  actionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SIZES.md,
+  },
+  actionButton: {
+    padding: SIZES.xs,
   },
   emptyContainer: {
     flex: 1,
@@ -236,10 +280,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
