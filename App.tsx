@@ -3,7 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StyleSheet, Text, Platform, Animated } from 'react-native';
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { Toaster } from 'sonner-native';
+// import { Toaster } from 'sonner-native'; // SVG 에러로 인해 임시 주석 처리
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -17,7 +17,6 @@ import ProductListScreen from './screens/ProductListScreen';
 import ClientFormScreen from './screens/ClientFormScreen';
 import ProductFormScreen from './screens/ProductFormScreen';
 import WarehouseScreen from './screens/WarehouseScreen';
-import WarehouseCurrentScreen from './screens/WarehouseCurrentScreen';
 import WarehouseHistoryScreen from './screens/WarehouseHistoryScreen';
 import WarehouseRequestScreen from './screens/WarehouseRequestScreen';
 import WarehouseFormScreen from './screens/WarehouseFormScreen';
@@ -29,11 +28,10 @@ import BarcodeScanScreen from './screens/BarcodeScanScreen';
 import BarcodeTabScreen from './screens/BarcodeTabScreen';
 import CustomTabBarButton from './components/CustomTabBarButton';
 import ManualProcessScreen from './screens/ManualProcessScreen';
+import UserManagementScreen from './screens/UserManagementScreen';
 
 // Auth Context
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { WarehouseFormProvider } from './context/WarehouseFormContext';
-import { OfflineProvider } from './context/OfflineContext';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -224,7 +222,6 @@ function AppContent() {
             <Stack.Screen name="ProductList" component={ProductListScreen} />
             <Stack.Screen name="ClientForm" component={ClientFormScreen} />
             <Stack.Screen name="ProductForm" component={ProductFormScreen} />
-            <Stack.Screen name="WarehouseCurrent" component={WarehouseCurrentScreen} />
             <Stack.Screen name="WarehouseHistory" component={WarehouseHistoryScreen} />
             <Stack.Screen name="WarehouseRequest" component={WarehouseRequestScreen} />
             <Stack.Screen name="WarehouseHistoryDetail" component={WarehouseHistoryDetailScreen} />
@@ -243,6 +240,10 @@ function AppContent() {
               name="ManualProcess" 
               component={ManualProcessScreen} 
             />
+            <Stack.Screen 
+              name="UserManagement" 
+              component={UserManagementScreen} 
+            />
           </>
         )}
       </Stack.Navigator>
@@ -258,13 +259,9 @@ export default function App() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider style={styles.container}>
           <AuthProvider>
-            <OfflineProvider>
-              <WarehouseFormProvider>
-                <AppContent />
-              </WarehouseFormProvider>
-            </OfflineProvider>
+            <AppContent />
           </AuthProvider>
-          <Toaster position="top-center" duration={2000} />
+          {/* <Toaster position="top-center" duration={2000} /> */}
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
