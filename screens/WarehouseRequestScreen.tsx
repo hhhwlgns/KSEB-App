@@ -69,11 +69,15 @@ export default function WarehouseRequestScreen() {
 
       if (searchQuery.trim()) {
         const lowercasedQuery = searchQuery.toLowerCase();
-        filtered = filtered.filter(item =>
-          (item.itemName || '').toLowerCase().includes(lowercasedQuery) ||
-          (item.itemCode || '').toLowerCase().includes(lowercasedQuery) ||
-          (item.companyName || '').toLowerCase().includes(lowercasedQuery)
-        );
+        filtered = filtered.filter(item => {
+          if (item.isRackRequest) {
+            return (item.rackId || '').toLowerCase().includes(lowercasedQuery) ||
+                   (item.companyName || '').toLowerCase().includes(lowercasedQuery);
+          }
+          return (item.itemName || '').toLowerCase().includes(lowercasedQuery) ||
+                 (item.itemCode || '').toLowerCase().includes(lowercasedQuery) ||
+                 (item.companyName || '').toLowerCase().includes(lowercasedQuery);
+        });
       }
       
       filtered.sort((a, b) => new Date(b.scheduledDateTime).getTime() - new Date(a.scheduledDateTime).getTime());
@@ -101,6 +105,11 @@ export default function WarehouseRequestScreen() {
     const statusStyle = getStatusStyle(item.status);
     const isOutbound = item.type === 'outbound';
 
+    const finalNotes = item.isRackRequest
+      ? `${item.notes || ''}
+(랙 단위 요청: ${item.rackId})`.trim()
+      : item.notes;
+
     return (
       <View style={styles.requestCard}>
         <View style={styles.cardHeader}>
@@ -126,7 +135,7 @@ export default function WarehouseRequestScreen() {
           <View style={styles.detailItem}><Text style={styles.detailLabel}>수량</Text><Text style={[styles.detailValue, styles.quantityValue]}>{item.quantity} 개</Text></View>
           <View style={styles.detailItemFull}><Text style={styles.detailLabel}>거래처</Text><Text style={styles.detailValue}>{item.companyName} ({item.companyCode})</Text></View>
           <View style={styles.detailItemFull}><Text style={styles.detailLabel}>예정일시</Text><Text style={styles.detailValue}>{formatDateTime(item.scheduledDateTime)}</Text></View>
-          {item.notes && <View style={styles.detailItemFull}><Text style={styles.detailLabel}>비고</Text><Text style={styles.detailValue}>{item.notes}</Text></View>}
+          {finalNotes ? <View style={styles.detailItemFull}><Text style={styles.detailLabel}>비고</Text><Text style={styles.detailValue}>{finalNotes}</Text></View> : null}
         </View>
       </View>
     );

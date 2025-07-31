@@ -69,15 +69,20 @@ export interface WarehouseHistoryItem {
 export interface WarehouseRequestItem {
   id: string;
   type: 'inbound' | 'outbound';
+  // 단일 품목 요청 속성
   itemCode: string;
   itemName: string;
   specification: string;
   quantity: number;
   companyCode: string;
   companyName: string;
+  // 랙 단위 요청 여부 플래그
+  isRackRequest: boolean;
+  rackId?: string;
+  // 공통 속성
   scheduledDateTime: string;
   notes: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'in_progress' | 'completed';
 }
 
 export interface InventoryItem {
@@ -93,12 +98,24 @@ export interface InventoryItem {
   lastUpdate: string;
 }
 
+export interface Rack {
+  id: string; // This will be the value encoded in the barcode (e.g., "RACK-001")
+  location: string;
+  // Single item information
+  productId: string;
+  sku: string;
+  name: string;
+  quantity: number;
+  lastUpdate: string;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
   message?: string;
   error?: string;
 }
+
 
 export interface LoginRequest {
   email: string;

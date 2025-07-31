@@ -55,3 +55,34 @@ export const MOCK_INVENTORY: InventoryItem[] = [
   { id: 'inv-003', name: '기계식 키보드', sku: 'SKU-KB-003', specification: '청축, RGB', quantity: 15, inboundScheduled: 50, outboundScheduled: 20, location: 'A-1-2', status: '부족', lastUpdate: getDateString(0, 9, 0) },
   { id: 'inv-004', name: '무선 마우스', sku: 'SKU-MSE-004', specification: '블루투스 5.0', quantity: 5, inboundScheduled: 100, outboundScheduled: 10, location: 'C-3-5', status: '위험', lastUpdate: getDateString(-2, 18, 0) },
 ];
+
+// 7. Racks (랙) - 단일 품목만 담는 구조로 변경
+export const MOCK_RACKS: Rack[] = [
+  {
+    id: 'RACK-001',
+    location: 'D-1-1',
+    productId: 'prod-001',
+    sku: 'SKU-NB-001',
+    name: '고성능 노트북',
+    quantity: 20,
+    lastUpdate: getDateString(-1, 15, 0),
+  },
+  {
+    id: 'RACK-002',
+    location: 'D-1-2',
+    productId: 'prod-003',
+    sku: 'SKU-KB-003',
+    name: '기계식 키보드',
+    quantity: 50,
+    lastUpdate: getDateString(-2, 10, 0),
+  },
+  {
+    id: 'RACK-003',
+    location: 'D-1-3',
+    productId: 'prod-004',
+    sku: 'SKU-MSE-004',
+    name: '무선 마우스',
+    quantity: 100,
+    lastUpdate: getDateString(0, 8, 30),
+  },
+];

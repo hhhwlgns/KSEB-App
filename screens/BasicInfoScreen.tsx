@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants';
+import OfflineIndicator from '../components/OfflineIndicator';
 
 export default function BasicInfoScreen() {
   const navigation = useNavigation();
@@ -36,6 +37,8 @@ export default function BasicInfoScreen() {
         <Text style={styles.title}>기초 정보</Text>
         <Text style={styles.subtitle}>거래처와 품목 정보를 관리하세요</Text>
       </View>
+      
+      <OfflineIndicator />
 
       <View style={styles.content}>
         {menuItems.map((item, index) => (

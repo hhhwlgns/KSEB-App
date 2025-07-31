@@ -10,6 +10,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigation } from '@react-navigation/native';
+import { toast } from 'sonner-native';
 
 import Header from '../components/Header';
 import SearchBar from '../components/SearchBar';
@@ -20,6 +22,7 @@ import { InventoryItem } from '../types';
 import { getInventory } from '../lib/api';
 
 export default function InventoryScreen() {
+  const navigation = useNavigation();
   const { data: inventory, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['inventory'],
     queryFn: getInventory,
@@ -32,6 +35,7 @@ export default function InventoryScreen() {
   useEffect(() => {
     if (inventory) {
       let filtered = [...inventory];
+      
       if (searchQuery.trim()) {
         const lowercasedQuery = searchQuery.toLowerCase();
         filtered = filtered.filter(item =>
@@ -41,6 +45,7 @@ export default function InventoryScreen() {
           item.location.toLowerCase().includes(lowercasedQuery)
         );
       }
+      
       setFilteredInventory(filtered.sort((a, b) => new Date(b.lastUpdate).getTime() - new Date(a.lastUpdate).getTime()));
     }
   }, [inventory, searchQuery]);
@@ -108,15 +113,17 @@ export default function InventoryScreen() {
         subtitle="실시간 재고 현황" 
         showBack
         rightComponent={
-          <TouchableOpacity style={styles.searchButton} onPress={() => setIsSearchVisible(!isSearchVisible)}>
-            <Ionicons name={isSearchVisible ? "close" : "search"} size={20} color={COLORS.primary} />
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity style={styles.headerButton} onPress={() => setIsSearchVisible(!isSearchVisible)}>
+              <Ionicons name={isSearchVisible ? "close" : "search"} size={20} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
         }
       />
 
       {isSearchVisible && (
-        <View style={styles.searchBarContainer}>
-          <SearchBar placeholder="품목명, SKU, 규격, 위치 검색..." value={searchQuery} onChangeText={handleSearch} />
+        <View style={styles.toolbar}>
+          <SearchBar placeholder="품목명, SKU, 규격, 위치 검색..." value={searchQuery} onChangeText={setSearchQuery} />
         </View>
       )}
 
@@ -178,8 +185,40 @@ export default function InventoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  searchButton: { padding: SIZES.sm },
-  searchBarContainer: { paddingHorizontal: SIZES.md, paddingBottom: SIZES.md, backgroundColor: COLORS.surface },
+  headerButtons: { 
+    flexDirection: 'row', 
+    gap: SIZES.xs 
+  },
+  headerButton: { 
+    padding: SIZES.sm,
+    position: 'relative',
+  },
+  activeFilterButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: SIZES.radius,
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: COLORS.error,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  toolbar: {
+    paddingHorizontal: SIZES.md,
+    paddingTop: SIZES.sm,
+    paddingBottom: SIZES.md,
+    backgroundColor: COLORS.surface,
+  },
   summaryContainer: {
     flexDirection: 'row',
     paddingHorizontal: SIZES.md,

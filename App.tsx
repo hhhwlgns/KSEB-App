@@ -25,10 +25,15 @@ import InventoryScreen from './screens/InventoryScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import WarehouseHistoryDetailScreen from './screens/WarehouseHistoryDetailScreen';
 import SelectionScreen from './screens/SelectionScreen';
+import BarcodeScanScreen from './screens/BarcodeScanScreen';
+import BarcodeTabScreen from './screens/BarcodeTabScreen';
+import CustomTabBarButton from './components/CustomTabBarButton';
+import ManualProcessScreen from './screens/ManualProcessScreen';
 
 // Auth Context
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { WarehouseFormProvider } from './context/WarehouseFormContext';
+import { OfflineProvider } from './context/OfflineContext';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -77,6 +82,9 @@ function MainTabs() {
             iconName = focused ? 'folder' : 'folder-outline';
           } else if (route.name === 'Warehouse') {
             iconName = focused ? 'swap-horizontal' : 'swap-horizontal-outline';
+          } else if (route.name === 'BarcodeTab') {
+            // 바코드 탭은 커스텀 렌더링
+            return null;
           } else if (route.name === 'Inventory') {
             iconName = focused ? 'cube' : 'cube-outline';
           } else if (route.name === 'Profile') {
@@ -127,6 +135,23 @@ function MainTabs() {
             <Text style={{ color, fontSize: 12, fontWeight: '500' }}>입출고 관리</Text>
           )
         }} 
+      />
+      <Tab.Screen 
+        name="BarcodeTab" 
+        component={BarcodeTabScreen} 
+        options={({ navigation }) => ({ 
+          tabBarButton: (props) => <CustomTabBarButton {...props} />,
+          tabBarLabel: () => null,
+        })}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('BarcodeScreen', {
+              title: '랙 바코드 스캔',
+              scanMode: 'rackProcess'
+            });
+          },
+        })}
       />
       <Tab.Screen 
         name="Inventory" 
@@ -209,6 +234,15 @@ function AppContent() {
               component={SelectionScreen} 
               options={{ animation: 'slide_from_bottom' }}
             />
+            <Stack.Screen 
+              name="BarcodeScreen" 
+              component={BarcodeScanScreen} 
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen 
+              name="ManualProcess" 
+              component={ManualProcessScreen} 
+            />
           </>
         )}
       </Stack.Navigator>
@@ -224,9 +258,11 @@ export default function App() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider style={styles.container}>
           <AuthProvider>
-            <WarehouseFormProvider>
-              <AppContent />
-            </WarehouseFormProvider>
+            <OfflineProvider>
+              <WarehouseFormProvider>
+                <AppContent />
+              </WarehouseFormProvider>
+            </OfflineProvider>
           </AuthProvider>
           <Toaster position="top-center" duration={2000} />
         </SafeAreaProvider>

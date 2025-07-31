@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { toast } from 'sonner-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 
 import Header from '../components/Header';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -141,7 +142,34 @@ export default function ProductFormScreen() {
             {renderInput('품목명', 'name', '예: 씽크패드 X1 카본', { required: true })}
             {renderInput('품목그룹', 'group', '예: 노트북')}
             {renderInput('규격', 'specification', '예: 14인치, i7, 16GB RAM')}
-            {renderInput('바코드', 'barcode', '예: 1234567890123', { keyboardType: 'numeric', maxLength: 20 })}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>바코드</Text>
+              <View style={styles.barcodeContainer}>
+                <TextInput
+                  style={[styles.input, styles.barcodeInput, errors.barcode && styles.inputError]}
+                  value={String(formData.barcode || '')}
+                  onChangeText={(value) => handleInputChange('barcode', value.replace(/[^0-9]/g, ''))}
+                  placeholder="예: 1234567890123"
+                  placeholderTextColor={COLORS.textMuted}
+                  keyboardType="numeric"
+                  maxLength={20}
+                  editable={!isSaving}
+                />
+                <TouchableOpacity
+                  style={styles.scanButton}
+                  onPress={() => navigation.navigate('BarcodeScreen' as never, { 
+                    title: '바코드 스캔',
+                    onScanComplete: (data: string) => {
+                      handleInputChange('barcode', data);
+                      toast.success('바코드가 입력되었습니다');
+                    }
+                  } as never)}
+                >
+                  <Ionicons name="scan" size={20} color={COLORS.primary} />
+                </TouchableOpacity>
+              </View>
+              {errors.barcode && <Text style={styles.errorText}>{errors.barcode}</Text>}
+            </View>
             <View style={styles.priceInputContainer}>
               <View style={{flex: 1}}>
                 {renderInput('입고단가', 'inboundPrice', '0', { keyboardType: 'numeric' })}
@@ -178,6 +206,24 @@ const styles = StyleSheet.create({
   inputError: { borderColor: COLORS.error },
   multilineInput: { height: 80, textAlignVertical: 'top', paddingTop: SIZES.md },
   errorText: { fontSize: SIZES.fontXS, color: COLORS.error, marginTop: SIZES.xs },
+  barcodeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SIZES.sm,
+  },
+  barcodeInput: {
+    flex: 1,
+  },
+  scanButton: {
+    width: 44,
+    height: SIZES.inputHeight,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: SIZES.radiusMD,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+  },
   priceInputContainer: {
     flexDirection: 'row',
     gap: SIZES.md,

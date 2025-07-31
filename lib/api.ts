@@ -3,11 +3,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Client, Product, User, WarehouseItem, InventoryItem, WarehouseHistoryItem, WarehouseRequestItem } from '../types';
 
 // !--- 개발용 모의 데이터 ---!
-import { MOCK_INVENTORY, MOCK_CLIENTS, MOCK_PRODUCTS, MOCK_WAREHOUSE_HISTORY, MOCK_WAREHOUSE_CURRENT, MOCK_WAREHOUSE_REQUESTS } from './mockData';
+import { MOCK_INVENTORY, MOCK_CLIENTS, MOCK_PRODUCTS, MOCK_WAREHOUSE_HISTORY, MOCK_WAREHOUSE_CURRENT, MOCK_WAREHOUSE_REQUESTS, MOCK_RACKS } from './mockData';
 const MOCK_MODE = true; 
 // !-------------------------!
 
 const API_URL = 'http://localhost:8080/api';
+
 
 const apiClient = axios.create({
   baseURL: API_URL,
@@ -131,6 +132,29 @@ export const deleteProduct = async (id: string): Promise<void> => {
   await apiClient.delete(`/products/${id}`);
 };
 
+export const getInventoryItemByBarcode = async (barcode: string): Promise<InventoryItem> => {
+  if (MOCK_MODE) {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        const product = MOCK_PRODUCTS.find(p => p.barcode === barcode);
+        if (!product) {
+          reject(new Error('해당 바코드의 품목을 찾을 수 없습니다.'));
+          return;
+        }
+        const inventoryItem = MOCK_INVENTORY.find(i => i.sku === product.code);
+        if (!inventoryItem) {
+          reject(new Error('품목은 있으나 재고 정보를 찾을 수 없습니다.'));
+          return;
+        }
+        resolve(inventoryItem);
+      }, 500); // 0.5초 지연
+    });
+  }
+  const response = await apiClient.get(`/inventory/by-barcode/${barcode}`);
+  return response.data;
+};
+
+
 // --- Warehouse ---
 export const getWarehouseHistory = async (): Promise<WarehouseHistoryItem[]> => {
   if (MOCK_MODE) return MOCK_WAREHOUSE_HISTORY;
@@ -150,17 +174,68 @@ export const getWarehouseRequests = async (): Promise<WarehouseRequestItem[]> =>
   return response.data;
 };
 
-export const createWarehouseRequest = async (requestData: Omit<WarehouseRequestItem, 'id' | 'status'>) => {
+export const createWarehouseRequest = async (requestData: Omit<WarehouseRequestItem, 'id' | 'status' | 'isRackRequest'>) => {
   if (MOCK_MODE) {
-    const newRequest = { 
+    const newRequest: WarehouseRequestItem = { 
       ...requestData, 
       id: `req-${Date.now()}`, 
-      status: 'pending' as const 
+      status: 'pending' as const,
+      isRackRequest: false,
     };
     MOCK_WAREHOUSE_REQUESTS.unshift(newRequest);
     return newRequest;
   }
   const response = await apiClient.post('/warehouse/requests', requestData);
+  return response.data;
+};
+
+export const createRackWarehouseRequest = async (rack: Rack, type: 'inbound' | 'outbound', notes: string, client: Client): Promise<WarehouseRequestItem> => {
+  const productInfo = MOCK_PRODUCTS.find(p => p.id === rack.productId);
+
+  const requestData: Omit<WarehouseRequestItem, 'id' | 'status'> = {
+    type,
+    isRackRequest: true,
+    rackId: rack.id,
+    // 단일 품목 정보로 채움
+    itemCode: rack.sku,
+    itemName: rack.name,
+    specification: productInfo?.specification || 'N/A',
+    quantity: rack.quantity,
+    // 공통 정보
+    scheduledDateTime: new Date().toISOString(),
+    notes,
+    companyCode: client.code,
+    companyName: client.name,
+  };
+
+  if (MOCK_MODE) {
+    const newRequest: WarehouseRequestItem = {
+      ...requestData,
+      id: `rack-req-${Date.now()}`,
+      status: 'pending',
+    };
+    MOCK_WAREHOUSE_REQUESTS.unshift(newRequest);
+    return newRequest;
+  }
+
+  const response = await apiClient.post('/warehouse/requests/rack', requestData);
+  return response.data;
+};
+
+export const getRackContents = async (rackId: string): Promise<Rack> => {
+  if (MOCK_MODE) {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        const rack = MOCK_RACKS.find(r => r.id === rackId);
+        if (rack) {
+          resolve(rack);
+        } else {
+          reject(new Error('해당 ID의 랙을 찾을 수 없습니다.'));
+        }
+      }, 300);
+    });
+  }
+  const response = await apiClient.get(`/racks/${rackId}`);
   return response.data;
 };
 
