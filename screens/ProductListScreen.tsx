@@ -18,59 +18,57 @@ import Header from '../components/Header';
 import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { COLORS, SIZES } from '../constants';
-import { Product } from '../types';
-import { getProducts, deleteProduct } from '../lib/api';
+import { Item } from '../types/item';
+import { fetchItems, deleteItem } from '../lib/api';
 
 export default function ProductListScreen() {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
 
-  const { data: products, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['products'],
-    queryFn: getProducts,
+  const { data: items, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ['items'],
+    queryFn: fetchItems,
   });
 
-  const { mutate: removeProduct } = useMutation({
-    mutationFn: deleteProduct,
+  const { mutate: removeItem } = useMutation({
+    mutationFn: deleteItem,
     onSuccess: () => {
       toast.success('품목이 삭제되었습니다.');
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['items'] });
     },
     onError: (error) => {
       toast.error(error.message || '삭제 중 오류가 발생했습니다.');
     },
   });
 
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [filteredItems, setFilteredItems] = useState<Item[]>([]);
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    if (products) {
-      setFilteredProducts(products);
+    if (items) {
+      setFilteredItems(items);
     }
-  }, [products]);
+  }, [items]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    if (!products) return;
+    if (!items) return;
 
     if (!query.trim()) {
-      setFilteredProducts(products);
+      setFilteredItems(items);
       return;
     }
 
-    const filtered = products.filter(
-      (product) =>
-        product.name.toLowerCase().includes(query.toLowerCase()) ||
-        product.code.toLowerCase().includes(query.toLowerCase()) ||
-        product.group.toLowerCase().includes(query.toLowerCase()) ||
-        (product.barcode && product.barcode.includes(query))
+    const filtered = items.filter(
+      (item) =>
+        item.itemName.toLowerCase().includes(query.toLowerCase()) ||
+        item.itemCode.toLowerCase().includes(query.toLowerCase())
     );
-    setFilteredProducts(filtered);
+    setFilteredItems(filtered);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: number) => {
     Alert.alert(
       '품목 삭제',
       '정말로 이 품목을 삭제하시겠습니까?',
@@ -78,15 +76,15 @@ export default function ProductListScreen() {
         { text: '취소', style: 'cancel' },
         { 
           text: '삭제', 
-          onPress: () => removeProduct(id),
+          onPress: () => removeItem(id),
           style: 'destructive' 
         },
       ]
     );
   };
 
-  const handleEdit = (product: Product) => {
-    navigation.navigate('ProductForm', { product: product });
+  const handleEdit = (item: Item) => {
+    navigation.navigate('ProductForm', { product: item });
   };
 
   const formatPrice = (price: number) => {
@@ -94,48 +92,38 @@ export default function ProductListScreen() {
     return price.toLocaleString('ko-KR') + '원';
   };
 
-  const renderProductItem = ({ item }: { item: Product }) => (
+  const renderProductItem = ({ item }: { item: Item }) => (
     <TouchableOpacity style={styles.productItem} onPress={() => handleEdit(item)} activeOpacity={0.7}>
       <View style={styles.productInfo}>
         <View style={styles.productHeader}>
-          <Text style={styles.productName}>{item.name}</Text>
-          <Text style={styles.productCode}>({item.code})</Text>
+          <Text style={styles.productName}>{item.itemName}</Text>
+          <Text style={styles.productCode}>({item.itemCode})</Text>
         </View>
         <View style={styles.detailGrid}>
-          <View style={styles.detailRow}>
-            <Ionicons name="layers-outline" size={14} color={COLORS.textSecondary} style={styles.icon} />
-            <Text style={styles.detailLabel}>품목그룹</Text>
-            <Text style={styles.detailValue}>{item.group}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Ionicons name="barcode-outline" size={14} color={COLORS.textSecondary} style={styles.icon} />
-            <Text style={styles.detailLabel}>바코드</Text>
-            <Text style={styles.detailValue}>{item.barcode || 'N/A'}</Text>
-          </View>
           <View style={styles.detailRow}>
             <Ionicons name="options-outline" size={14} color={COLORS.textSecondary} style={styles.icon} />
             <Text style={styles.detailLabel}>규격</Text>
             <Text style={styles.detailValue}>{item.specification}</Text>
           </View>
-        </View>
-        <View style={styles.priceContainer}>
-          <View style={styles.priceBox}>
-            <Text style={styles.priceLabel}>입고단가</Text>
-            <Text style={[styles.priceValue, styles.inPrice]}>{formatPrice(item.inboundPrice)}</Text>
+          <View style={styles.detailRow}>
+            <Ionicons name="cube-outline" size={14} color={COLORS.textSecondary} style={styles.icon} />
+            <Text style={styles.detailLabel}>단위</Text>
+            <Text style={styles.detailValue}>{item.unit}</Text>
           </View>
-          <View style={styles.priceBox}>
-            <Text style={styles.priceLabel}>출고단가</Text>
-            <Text style={[styles.priceValue, styles.outPrice]}>{formatPrice(item.outboundPrice)}</Text>
+          <View style={styles.detailRow}>
+            <Ionicons name="cash-outline" size={14} color={COLORS.textSecondary} style={styles.icon} />
+            <Text style={styles.detailLabel}>가격</Text>
+            <Text style={styles.detailValue}>{formatPrice(item.price)}</Text>
           </View>
         </View>
       </View>
-      <TouchableOpacity style={styles.deleteButton} onPress={(e) => { e.stopPropagation(); handleDelete(item.id); }}>
+      <TouchableOpacity style={styles.deleteButton} onPress={(e) => { e.stopPropagation(); handleDelete(item.itemId); }}>
         <Ionicons name="trash-outline" size={22} color={COLORS.error} />
       </TouchableOpacity>
     </TouchableOpacity>
   );
 
-  if (isLoading && !products) {
+  if (isLoading && !items) {
     return (
       <SafeAreaView style={styles.container}>
         <Header 
@@ -175,7 +163,7 @@ export default function ProductListScreen() {
       )}
 
       <View style={styles.content}>
-        {filteredProducts.length === 0 ? (
+        {filteredItems.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="cube-outline" size={48} color={COLORS.textMuted} />
             <Text style={styles.emptyText}>
@@ -184,9 +172,9 @@ export default function ProductListScreen() {
           </View>
         ) : (
           <FlatList
-            data={filteredProducts}
+            data={filteredItems}
             renderItem={renderProductItem}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item.itemId.toString()}
             refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContainer}

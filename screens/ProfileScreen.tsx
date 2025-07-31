@@ -36,6 +36,12 @@ export default function ProfileScreen() {
       onPress: () => {},
     },
     {
+      title: '사용자 관리',
+      icon: 'people-outline',
+      onPress: () => navigation.navigate('UserManagement' as never),
+      adminOnly: true,
+    },
+    {
       title: '설정',
       icon: 'settings-outline',
       onPress: () => {},
@@ -64,23 +70,25 @@ export default function ProfileScreen() {
             <Ionicons name="person" size={32} color={COLORS.primary} />
           </View>
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>{user?.name || '사용자'}</Text>
+            <Text style={styles.userName}>{user?.fullName || '사용자'}</Text>
             <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
-            <Text style={styles.userRole}>{user?.role || 'manager'}</Text>
+            <Text style={styles.userRole}>{user?.role || 'USER'}</Text>
           </View>
         </View>
 
         <View style={styles.menuSection}>
           {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.menuItem}
-              onPress={item.onPress}
-            >
-              <Ionicons name={item.icon as any} size={24} color={COLORS.textSecondary} />
-              <Text style={styles.menuText}>{item.title}</Text>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-            </TouchableOpacity>
+            (item.adminOnly && user?.role !== 'ADMIN') ? null : (
+              <TouchableOpacity
+                key={index}
+                style={styles.menuItem}
+                onPress={item.onPress}
+              >
+                <Ionicons name={item.icon as any} size={24} color={COLORS.textSecondary} />
+                <Text style={styles.menuText}>{item.title}</Text>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            )
           ))}
         </View>
 

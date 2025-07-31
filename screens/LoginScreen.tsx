@@ -18,19 +18,19 @@ import { useAuth } from '../context/AuthContext';
 import { COLORS, SIZES } from '../constants';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{email?: string; password?: string}>({});
+  const [errors, setErrors] = useState<{username?: string; password?: string}>({});
   
   const { login } = useAuth();
 
   const validateForm = () => {
-    const newErrors: {email?: string; password?: string} = {};
+    const newErrors: {username?: string; password?: string} = {};
     
-    if (!email.trim()) {
-      newErrors.email = '아이디를 입력해주세요';
+    if (!username.trim()) {
+      newErrors.username = '아이디를 입력해주세요';
     }
     
     if (!password.trim()) {
@@ -48,8 +48,8 @@ export default function LoginScreen() {
     
     try {
       setLoading(true);
-      await login(email, password);
-      toast.success('로그인 성공!');
+      await login(username, password);
+      // toast.success('로그인 성공!'); // SVG 에러로 인해 임시 주석 처리
     } catch (error) {
       console.error('Login failed:', error);
       Alert.alert(
@@ -86,22 +86,22 @@ export default function LoginScreen() {
             <View style={styles.inputContainer}>
               <Text style={styles.label}>아이디</Text>
               <TextInput
-                style={[styles.input, errors.email && styles.inputError]}
+                style={[styles.input, errors.username && styles.inputError]}
                 placeholder="아이디를 입력하세요"
                 placeholderTextColor={COLORS.textMuted}
-                value={email}
+                value={username}
                 onChangeText={(text) => {
-                  setEmail(text);
-                  if (errors.email) {
-                    setErrors(prev => ({ ...prev, email: undefined }));
+                  setUsername(text);
+                  if (errors.username) {
+                    setErrors(prev => ({ ...prev, username: undefined }));
                   }
                 }}
                 autoCapitalize="none"
-                keyboardType="email-address"
+                keyboardType="default"
                 returnKeyType="next"
               />
-              {errors.email && (
-                <Text style={styles.errorText}>{errors.email}</Text>
+              {errors.username && (
+                <Text style={styles.errorText}>{errors.username}</Text>
               )}
             </View>
 

@@ -18,14 +18,14 @@ import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CollapsibleSection from '../components/CollapsibleSection';
 import { COLORS, SIZES } from '../constants';
-import { InventoryItem } from '../types';
-import { getInventory } from '../lib/api';
+import { InventoryItem } from '../types/inout';
+import { fetchInventoryData } from '../lib/api';
 
 export default function InventoryScreen() {
   const navigation = useNavigation();
-  const { data: inventory, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['inventory'],
-    queryFn: getInventory,
+  const { data: inventoryItems, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ['inventoryData'],
+    queryFn: fetchInventoryData,
   });
   
   const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>([]);
@@ -33,8 +33,8 @@ export default function InventoryScreen() {
   const [isSearchVisible, setIsSearchVisible] = useState(false);
 
   useEffect(() => {
-    if (inventory) {
-      let filtered = [...inventory];
+    if (inventoryItems) {
+      let filtered = [...inventoryItems];
       
       if (searchQuery.trim()) {
         const lowercasedQuery = searchQuery.toLowerCase();
@@ -48,7 +48,7 @@ export default function InventoryScreen() {
       
       setFilteredInventory(filtered.sort((a, b) => new Date(b.lastUpdate).getTime() - new Date(a.lastUpdate).getTime()));
     }
-  }, [inventory, searchQuery]);
+  }, [inventoryItems, searchQuery]);
 
   const summary = useMemo(() => {
     if (!filteredInventory) return { total: 0, inbound: 0, outbound: 0, lowStock: 0 };
@@ -102,7 +102,7 @@ export default function InventoryScreen() {
     );
   };
 
-  if (isLoading && !inventory) {
+  if (isLoading && !inventoryItems) {
     return <SafeAreaView style={styles.container}><LoadingSpinner /></SafeAreaView>;
   }
 
@@ -169,7 +169,7 @@ export default function InventoryScreen() {
       <FlatList
         data={filteredInventory}
         renderItem={renderInventoryItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={

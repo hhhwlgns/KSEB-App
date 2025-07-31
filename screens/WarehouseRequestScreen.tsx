@@ -18,42 +18,37 @@ import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CollapsibleSection from '../components/CollapsibleSection';
 import { COLORS, SIZES } from '../constants';
-import { WarehouseRequestItem } from '../types';
-import { getWarehouseRequests } from '../lib/api';
+import { InOutRequest } from '../types/inout';
+import { fetchInOutRequests } from '../lib/api';
 
 const FILTER_OPTIONS = [
   { label: '전체', value: 'all' },
-  { label: '승인 대기', value: 'pending' },
-  { label: '처리 완료', value: 'completed' },
+  { label: '입고', value: 'INBOUND' },
+  { label: '출고', value: 'OUTBOUND' },
 ];
 
 export default function WarehouseRequestScreen() {
   const navigation = useNavigation();
   const { data: requests, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['warehouseRequests'],
-    queryFn: getWarehouseRequests,
+    queryKey: ['inOutRequests'],
+    queryFn: fetchInOutRequests,
   });
 
-  const [filteredRequests, setFilteredRequests] = useState<WarehouseRequestItem[]>([]);
+  const [filteredRequests, setFilteredRequests] = useState<InOutRequest[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchVisible, setSearchVisible] = useState(false);
 
   const todaySummary = useMemo(() => {
-    if (!requests) return { total: 0, pending: 0, completed: 0 };
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    if (!requests) return { total: 0, inbound: 0, outbound: 0 };
+    const today = new Date().toISOString().split('T')[0];
     
-    const todayRequests = requests.filter(item => {
-      const itemDate = new Date(item.scheduledDateTime);
-      itemDate.setHours(0, 0, 0, 0);
-      return itemDate.getTime() === today.getTime();
-    });
+    const todayRequests = requests.filter(item => item.expectedDate === today);
 
     return {
       total: todayRequests.length,
-      pending: todayRequests.filter(item => item.status === 'pending').length,
-      completed: todayRequests.filter(item => item.status === 'approved' || item.status === 'rejected').length,
+      inbound: todayRequests.filter(item => item.type === 'INBOUND').length,
+      outbound: todayRequests.filter(item => item.type === 'OUTBOUND').length,
     };
   }, [requests]);
 
@@ -61,54 +56,32 @@ export default function WarehouseRequestScreen() {
     if (requests) {
       let filtered = [...requests];
       
-      if (activeFilter === 'pending') {
-        filtered = filtered.filter(item => item.status === 'pending');
-      } else if (activeFilter === 'completed') {
-        filtered = filtered.filter(item => item.status === 'approved' || item.status === 'rejected');
+      if (activeFilter !== 'all') {
+        filtered = filtered.filter(item => item.type === activeFilter);
       }
 
       if (searchQuery.trim()) {
         const lowercasedQuery = searchQuery.toLowerCase();
-        filtered = filtered.filter(item => {
-          if (item.isRackRequest) {
-            return (item.rackId || '').toLowerCase().includes(lowercasedQuery) ||
-                   (item.companyName || '').toLowerCase().includes(lowercasedQuery);
-          }
-          return (item.itemName || '').toLowerCase().includes(lowercasedQuery) ||
-                 (item.itemCode || '').toLowerCase().includes(lowercasedQuery) ||
-                 (item.companyName || '').toLowerCase().includes(lowercasedQuery);
-        });
+        filtered = filtered.filter(item => 
+          (item.itemName || '').toLowerCase().includes(lowercasedQuery) ||
+          (item.itemCode || '').toLowerCase().includes(lowercasedQuery) ||
+          (item.companyName || '').toLowerCase().includes(lowercasedQuery)
+        );
       }
       
-      filtered.sort((a, b) => new Date(b.scheduledDateTime).getTime() - new Date(a.scheduledDateTime).getTime());
+      filtered.sort((a, b) => new Date(b.expectedDate).getTime() - new Date(a.expectedDate).getTime());
 
       setFilteredRequests(filtered);
     }
   }, [requests, searchQuery, activeFilter]);
 
-  const getStatusStyle = (status: WarehouseRequestItem['status']) => {
-    switch (status) {
-      case 'pending': return { color: COLORS.statusPending, icon: 'time-outline', label: '승인 대기' };
-      case 'approved': return { color: COLORS.statusApproved, icon: 'checkmark-circle-outline', label: '승인됨' };
-      case 'rejected': return { color: COLORS.statusRejected, icon: 'close-circle-outline', label: '거절됨' };
-      default: return { color: COLORS.textMuted, icon: 'help-circle-outline', label: '알 수 없음' };
-    }
-  };
-
   const formatDateTime = (dateTimeString: string) => {
     if (!dateTimeString) return 'N/A';
-    const date = new Date(dateTimeString);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    return dateTimeString;
   };
 
-  const renderRequestItem = ({ item }: { item: WarehouseRequestItem }) => {
-    const statusStyle = getStatusStyle(item.status);
-    const isOutbound = item.type === 'outbound';
-
-    const finalNotes = item.isRackRequest
-      ? `${item.notes || ''}
-(랙 단위 요청: ${item.rackId})`.trim()
-      : item.notes;
+  const renderRequestItem = ({ item }: { item: InOutRequest }) => {
+    const isOutbound = item.type === 'OUTBOUND';
 
     return (
       <View style={styles.requestCard}>
@@ -120,8 +93,8 @@ export default function WarehouseRequestScreen() {
             </Text>
           </View>
           <View style={styles.statusContainer}>
-            <Ionicons name={statusStyle.icon as any} size={16} color={statusStyle.color} />
-            <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusStyle.label}</Text>
+            <Ionicons name={'time-outline'} size={16} color={COLORS.statusPending} />
+            <Text style={[styles.statusText, { color: COLORS.statusPending }]}>승인 대기</Text>
           </View>
         </View>
         
@@ -131,11 +104,9 @@ export default function WarehouseRequestScreen() {
         </View>
 
         <View style={styles.detailGrid}>
-          <View style={styles.detailItem}><Text style={styles.detailLabel}>규격</Text><Text style={styles.detailValue}>{item.specification}</Text></View>
           <View style={styles.detailItem}><Text style={styles.detailLabel}>수량</Text><Text style={[styles.detailValue, styles.quantityValue]}>{item.quantity} 개</Text></View>
           <View style={styles.detailItemFull}><Text style={styles.detailLabel}>거래처</Text><Text style={styles.detailValue}>{item.companyName} ({item.companyCode})</Text></View>
-          <View style={styles.detailItemFull}><Text style={styles.detailLabel}>예정일시</Text><Text style={styles.detailValue}>{formatDateTime(item.scheduledDateTime)}</Text></View>
-          {finalNotes ? <View style={styles.detailItemFull}><Text style={styles.detailLabel}>비고</Text><Text style={styles.detailValue}>{finalNotes}</Text></View> : null}
+          <View style={styles.detailItemFull}><Text style={styles.detailLabel}>예정일</Text><Text style={styles.detailValue}>{formatDateTime(item.expectedDate)}</Text></View>
         </View>
       </View>
     );

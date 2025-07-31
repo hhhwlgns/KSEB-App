@@ -18,58 +18,57 @@ import Header from '../components/Header';
 import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { COLORS, SIZES } from '../constants';
-import { Client } from '../types';
-import { getClients, deleteClient } from '../lib/api';
+import { Company } from '../types/company';
+import { fetchCompanies, deleteCompany } from '../lib/api';
 
 export default function ClientListScreen() {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
 
-  const { data: clients, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['clients'],
-    queryFn: getClients,
+  const { data: companies, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ['companies'],
+    queryFn: fetchCompanies,
   });
 
-  const { mutate: removeClient } = useMutation({
-    mutationFn: deleteClient,
+  const { mutate: removeCompany } = useMutation({
+    mutationFn: deleteCompany,
     onSuccess: () => {
       toast.success('거래처가 삭제되었습니다.');
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['companies'] });
     },
     onError: (error) => {
       toast.error(error.message || '삭제 중 오류가 발생했습니다.');
     },
   });
 
-  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
+  const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    if (clients) {
-      setFilteredClients(clients);
+    if (companies) {
+      setFilteredCompanies(companies);
     }
-  }, [clients]);
+  }, [companies]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    if (!clients) return;
+    if (!companies) return;
 
     if (!query.trim()) {
-      setFilteredClients(clients);
+      setFilteredCompanies(companies);
       return;
     }
 
-    const filtered = clients.filter(
-      (client) =>
-        client.name.toLowerCase().includes(query.toLowerCase()) ||
-        client.code.toLowerCase().includes(query.toLowerCase()) ||
-        (client.representative && client.representative.toLowerCase().includes(query.toLowerCase()))
+    const filtered = companies.filter(
+      (company) =>
+        company.companyName.toLowerCase().includes(query.toLowerCase()) ||
+        company.companyCode.toLowerCase().includes(query.toLowerCase())
     );
-    setFilteredClients(filtered);
+    setFilteredCompanies(filtered);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: number) => {
     Alert.alert(
       '거래처 삭제',
       '정말로 이 거래처를 삭제하시겠습니까?',
@@ -77,36 +76,25 @@ export default function ClientListScreen() {
         { text: '취소', style: 'cancel' },
         { 
           text: '삭제', 
-          onPress: () => removeClient(id),
+          onPress: () => removeCompany(id),
           style: 'destructive' 
         },
       ]
     );
   };
 
-  const handleEdit = (client: Client) => {
-    navigation.navigate('ClientForm', { client: client });
+  const handleEdit = (company: Company) => {
+    navigation.navigate('ClientForm', { client: company });
   };
 
-  const renderClientItem = ({ item }: { item: Client }) => (
+  const renderClientItem = ({ item }: { item: Company }) => (
     <TouchableOpacity style={styles.clientItem} onPress={() => handleEdit(item)} activeOpacity={0.7}>
       <View style={styles.clientInfo}>
         <View style={styles.clientHeader}>
-          <View style={[styles.typeBadge, { backgroundColor: item.type === '매입처' ? '#e0f2fe' : '#ffedd5' }]}>
-            <Text style={[styles.typeText, { color: item.type === '매입처' ? '#0c4a6e' : '#9a3412' }]}>{item.type}</Text>
-          </View>
-          <Text style={styles.clientName}>{item.name}</Text>
-          <Text style={styles.clientCode}>({item.code})</Text>
+          <Text style={styles.clientName}>{item.companyName}</Text>
+          <Text style={styles.clientCode}>({item.companyCode})</Text>
         </View>
         <View style={styles.clientDetails}>
-          <View style={styles.detailRow}>
-            <Ionicons name="person-outline" size={14} color={COLORS.textSecondary} />
-            <Text style={styles.clientDetail}>{item.representative || 'N/A'}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Ionicons name="call-outline" size={14} color={COLORS.textSecondary} />
-            <Text style={styles.clientDetail}>{item.phone || 'N/A'}</Text>
-          </View>
           <View style={styles.detailRow}>
             <Ionicons name="mail-outline" size={14} color={COLORS.textSecondary} />
             <Text style={styles.clientDetail}>{item.email || 'N/A'}</Text>
@@ -117,13 +105,13 @@ export default function ClientListScreen() {
           </View>
         </View>
       </View>
-      <TouchableOpacity style={styles.deleteButton} onPress={(e) => { e.stopPropagation(); handleDelete(item.id); }}>
+      <TouchableOpacity style={styles.deleteButton} onPress={(e) => { e.stopPropagation(); handleDelete(item.companyId); }}>
         <Ionicons name="trash-outline" size={22} color={COLORS.error} />
       </TouchableOpacity>
     </TouchableOpacity>
   );
 
-  if (isLoading && !clients) {
+  if (isLoading && !companies) {
     return (
       <SafeAreaView style={styles.container}>
         <Header 
@@ -169,7 +157,7 @@ export default function ClientListScreen() {
       )}
 
       <View style={styles.content}>
-        {filteredClients.length === 0 ? (
+        {filteredCompanies.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="business-outline" size={48} color={COLORS.textMuted} />
             <Text style={styles.emptyText}>
@@ -178,9 +166,9 @@ export default function ClientListScreen() {
           </View>
         ) : (
           <FlatList
-            data={filteredClients}
+            data={filteredCompanies}
             renderItem={renderClientItem}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item.companyId.toString()}
             refreshControl={
               <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
             }
