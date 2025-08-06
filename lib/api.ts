@@ -105,31 +105,30 @@ export async function deleteItem(id: number): Promise<void> {
 }
 
 // --- InOut ---
+// --- InOut ---
 export async function getWarehouseCurrent(): Promise<WarehouseItem[]> {
   const response = await apiClient.get('/api/inout/orders');
-  const allData: InOutRequest[] = await handleResponse(response);
+  const allData: any[] = await handleResponse(response);
   
   const nonCompletedData = allData.filter(record => record.status !== 'COMPLETED' && record.status !== 'CANCELLED');
 
-  return nonCompletedData.flatMap((record, recordIndex) => {
-    // Assuming each record in this context has one item, as per the screen design.
-    // If a record can have multiple items, this logic needs adjustment.
-    return {
-      id: `${record.orderId}-${recordIndex}`,
-      type: record.type?.toLowerCase() as 'inbound' | 'outbound',
-      productName: record.itemName || 'N/A',
-      sku: record.itemCode || 'N/A',
-      individualCode: `ORDER-${record.orderId}`,
-      specification: 'N/A', // This info is not in InOutRequest, may need another fetch or adjustment
-      quantity: record.quantity || 0,
+  return nonCompletedData.flatMap(order => 
+    (order.items || []).map((item: any, itemIndex: number) => ({
+      id: `${order.orderId}-${itemIndex}`,
+      type: order.type?.toLowerCase() as 'inbound' | 'outbound',
+      productName: item.itemName || 'N/A',
+      sku: item.itemCode || 'N/A',
+      individualCode: `ORDER-${order.orderId}-${item.itemId}`,
+      specification: item.specification || 'N/A',
+      quantity: item.requestedQuantity || 0,
       location: 'A-01', // Default or placeholder location
-      companyName: record.companyName || 'N/A',
-      companyCode: record.companyCode || 'N/A',
-      status: record.status === 'PENDING' ? 'pending' : 'in_progress',
+      companyName: order.companyName || 'N/A',
+      companyCode: order.companyCode || 'N/A',
+      status: order.status === 'PENDING' ? 'pending' : 'in_progress',
       destination: 'N/A', // Placeholder
-      dateTime: record.expectedDate || record.createdAt,
-    };
-  });
+      dateTime: order.expectedDate || order.createdAt,
+    }))
+  );
 }
 
 export async function fetchInOutData(): Promise<InOutRecord[]> {
@@ -158,10 +157,19 @@ export async function fetchInOutData(): Promise<InOutRecord[]> {
   );
 }
 
-export async function fetchInOutRequests(): Promise<InOutRequest[]> {
+export async function fetchInOutRequests(): Promise<PendingRequestItem[]> {
   const response = await apiClient.get('/api/inout/orders');
-  const allData = await handleResponse(response);
-  return allData.filter(record => record.status === 'PENDING');
+  const allData: InOutRequest[] = await handleResponse(response);
+  const pendingOrders = allData.filter(record => record.status === 'PENDING');
+
+  return pendingOrders.flatMap(order => 
+    (order.items || []).map(item => ({
+      type: order.type,
+      status: order.status,
+      itemCode: item.itemCode,
+      quantity: item.requestedQuantity,
+    }))
+  );
 }
 
 export interface InOutOrderRequest {
@@ -262,19 +270,11 @@ export async function fetchInventoryData(): Promise<InventoryItem[]> {
     const item = items.find(i => i.itemId === backendItem.itemId);
     
     const inboundScheduled = pendingRequests
-      .filter(request => 
-        request.type === 'inbound' && 
-        request.itemName === backendItem.itemName &&
-        request.status === 'pending'
-      )
+      .filter(request => request.type === 'INBOUND' && request.itemCode === item?.itemCode)
       .reduce((sum, request) => sum + request.quantity, 0);
     
     const outboundScheduled = pendingRequests
-      .filter(request => 
-        request.type === 'outbound' && 
-        request.itemName === backendItem.itemName &&
-        request.status === 'pending'
-      )
+      .filter(request => request.type === 'OUTBOUND' && request.itemCode === item?.itemCode)
       .reduce((sum, request) => sum + request.quantity, 0);
     
     let status: '정상' | '부족' | '위험' = '정상';
@@ -294,7 +294,7 @@ export async function fetchInventoryData(): Promise<InventoryItem[]> {
       outboundScheduled: outboundScheduled,
       location: backendItem.locationCode,
       status: status,
-      lastUpdate: new Date(backendItem.lastUpdated).toLocaleString('ko-KR')
+      lastUpdate: backendItem.lastUpdated
     };
   });
   
