@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { toast } from 'sonner-native';
+// import { toast } from 'sonner-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 
@@ -32,6 +32,7 @@ export default function WarehouseFormScreen() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [quantity, setQuantity] = useState('');
+  const [notes, setNotes] = useState('');
   const [expectedDate, setExpectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -59,14 +60,14 @@ export default function WarehouseFormScreen() {
       }
     },
     onSuccess: () => {
-      toast.success('입출고 요청이 성공적으로 등록되었습니다.');
+      Alert.alert('성공', '입출고 요청이 성공적으로 등록되었습니다.');
       queryClient.invalidateQueries({ queryKey: ['inOutData'] });
       queryClient.invalidateQueries({ queryKey: ['inOutRequests'] });
       navigation.goBack();
     },
     onError: (error) => {
       console.error("Order creation failed:", error);
-      toast.error(error.message || '요청 등록 중 오류가 발생했습니다.');
+      Alert.alert('오류', error.message || '요청 등록 중 오류가 발생했습니다.');
     },
   });
 
@@ -145,7 +146,7 @@ export default function WarehouseFormScreen() {
               <Text style={styles.label}>작업 유형 *</Text>
               <View style={styles.typeSelector}>
                 <TouchableOpacity style={[styles.typeButton, type === 'INBOUND' && styles.typeButtonActive]} onPress={() => setType('INBOUND')}>
-                  <Text style={[styles.typeButtonText, formData.type === 'inbound' && styles.typeButtonTextActive]}>입고</Text>
+                  <Text style={[styles.typeButtonText, type === 'INBOUND' && styles.typeButtonTextActive]}>입고</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.typeButton, type === 'OUTBOUND' && styles.typeButtonActive]} onPress={() => setType('OUTBOUND')}>
                   <Text style={[styles.typeButtonText, type === 'OUTBOUND' && styles.typeButtonTextActive]}>출고</Text>
@@ -155,13 +156,12 @@ export default function WarehouseFormScreen() {
 
             <CustomDropdown
               label="품목 *"
-              placeholder="품목을 선택하세요"
-              options={items || []}
-              value={selectedItem ? selectedItem.itemName : ''}
+              data={items || []}
+              value={selectedItem}
               onSelect={(item) => setSelectedItem(item as Item)}
-              keyExtractor={(item) => item.itemId.toString()}
-              labelExtractor={(item) => item.itemName}
-              error={errors.item}
+              placeholder="품목을 선택하세요"
+              displayKey="itemName"
+              searchable={true}
             />
 
             <View style={styles.inputContainer}>
@@ -182,13 +182,12 @@ export default function WarehouseFormScreen() {
             
             <CustomDropdown
               label="거래처 *"
-              placeholder="거래처를 선택하세요"
-              options={companies || []}
-              value={selectedCompany ? selectedCompany.companyName : ''}
+              data={companies || []}
+              value={selectedCompany}
               onSelect={(company) => setSelectedCompany(company as Company)}
-              keyExtractor={(company) => company.companyId.toString()}
-              labelExtractor={(company) => company.companyName}
-              error={errors.company}
+              placeholder="거래처를 선택하세요"
+              displayKey="companyName"
+              searchable={true}
             />
 
             <View style={styles.inputContainer}>

@@ -105,6 +105,33 @@ export async function deleteItem(id: number): Promise<void> {
 }
 
 // --- InOut ---
+export async function getWarehouseCurrent(): Promise<WarehouseItem[]> {
+  const response = await apiClient.get('/api/inout/orders');
+  const allData: InOutRequest[] = await handleResponse(response);
+  
+  const nonCompletedData = allData.filter(record => record.status !== 'COMPLETED' && record.status !== 'CANCELLED');
+
+  return nonCompletedData.flatMap((record, recordIndex) => {
+    // Assuming each record in this context has one item, as per the screen design.
+    // If a record can have multiple items, this logic needs adjustment.
+    return {
+      id: `${record.orderId}-${recordIndex}`,
+      type: record.type?.toLowerCase() as 'inbound' | 'outbound',
+      productName: record.itemName || 'N/A',
+      sku: record.itemCode || 'N/A',
+      individualCode: `ORDER-${record.orderId}`,
+      specification: 'N/A', // This info is not in InOutRequest, may need another fetch or adjustment
+      quantity: record.quantity || 0,
+      location: 'A-01', // Default or placeholder location
+      companyName: record.companyName || 'N/A',
+      companyCode: record.companyCode || 'N/A',
+      status: record.status === 'PENDING' ? 'pending' : 'in_progress',
+      destination: 'N/A', // Placeholder
+      dateTime: record.expectedDate || record.createdAt,
+    };
+  });
+}
+
 export async function fetchInOutData(): Promise<InOutRecord[]> {
   const response = await apiClient.get('/api/inout/orders');
   const allData = await handleResponse(response);
@@ -122,7 +149,7 @@ export async function fetchInOutData(): Promise<InOutRecord[]> {
       location: 'A-01', // Default location
       company: record.companyName || 'N/A',
       companyCode: record.companyCode || 'N/A',
-      status: '완료',
+      status: '완료', // Explicitly set status to '완료'
       destination: 'N/A',
       date: (record.createdAt || record.updatedAt || new Date().toISOString()).split('T')[0],
       time: (record.createdAt || record.updatedAt || new Date().toISOString()).split('T')[1]?.substring(0, 8) || '00:00:00',

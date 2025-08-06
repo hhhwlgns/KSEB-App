@@ -18,47 +18,51 @@ import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CollapsibleSection from '../components/CollapsibleSection';
 import { COLORS, SIZES } from '../constants';
-import { InOutRecord } from '../types/inout';
-import { fetchInOutData } from '../lib/api';
+import { WarehouseItem } from '../types';
+import { getWarehouseCurrent } from '../lib/api';
 
-const FILTER_OPTIONS = {
-  type: [
-    { label: '전체', value: 'all' },
-    { label: '입고', value: 'inbound' },
-    { label: '출고', value: 'outbound' },
-  ],
-};
+const FILTER_OPTIONS = [
+  { label: '전체', value: 'all' },
+  { label: '진행중', value: 'in_progress' },
+  { label: '예약', value: 'pending' },
+];
 
-export default function WarehouseHistoryScreen() {
+export default function WarehouseCurrentScreen() {
   const navigation = useNavigation();
-  const { data: inOutRecords, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['inOutData'],
-    queryFn: fetchInOutData,
+  const { data: items, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ['warehouseCurrent'],
+    queryFn: getWarehouseCurrent,
   });
 
-  const [filteredRecords, setFilteredRecords] = useState<InOutRecord[]>([]);
+  const [filteredItems, setFilteredItems] = useState<WarehouseItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeType, setActiveType] = useState('all');
+  const [activeFilter, setActiveFilter] = useState('all');
   const [searchVisible, setSearchVisible] = useState(false);
 
   const todaySummary = useMemo(() => {
-    if (!inOutRecords) return { inbound: 0, outbound: 0 };
-    const today = new Date().toISOString().split('T')[0];
+    if (!items) return { inProgress: 0, pending: 0 };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
-    const todayCompletedItems = inOutRecords.filter(item => item.date === today && item.status === '완료');
+    const todayItems = items.filter(item => {
+      const itemDate = new Date(item.dateTime);
+      itemDate.setHours(0, 0, 0, 0);
+      return itemDate.getTime() === today.getTime();
+    });
 
     return {
-      inbound: todayCompletedItems.filter(item => item.type === 'inbound').length,
-      outbound: todayCompletedItems.filter(item => item.type === 'outbound').length,
+      inProgress: todayItems.filter(item => item.status === 'in_progress').length,
+      pending: todayItems.filter(item => item.status === 'pending').length,
     };
-  }, [inOutRecords]);
+  }, [items]);
 
   useEffect(() => {
-    if (inOutRecords) {
-      let filtered = [...inOutRecords];
+    if (items) {
+      let baseItems = items.filter(item => item.status !== 'completed');
+      let filtered = [...baseItems];
       
-      if (activeType !== 'all') {
-        filtered = filtered.filter(item => item.type === activeType);
+      if (activeFilter !== 'all') {
+        filtered = filtered.filter(item => item.status === activeFilter);
       }
 
       if (searchQuery.trim()) {
@@ -66,105 +70,78 @@ export default function WarehouseHistoryScreen() {
         filtered = filtered.filter(item =>
           (item.productName || '').toLowerCase().includes(lowercasedQuery) ||
           (item.sku || '').toLowerCase().includes(lowercasedQuery) ||
-          (item.company || '').toLowerCase().includes(lowercasedQuery) ||
-          (item.individualCode || '').toLowerCase().includes(lowercasedQuery)
+          (item.companyName || '').toLowerCase().includes(lowercasedQuery)
         );
       }
       
-      filtered.sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
+      filtered.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
 
-      setFilteredRecords(filtered);
+      setFilteredItems(filtered);
     }
-  }, [inOutRecords, searchQuery, activeType]);
+  }, [items, searchQuery, activeFilter]);
 
-  const formatDateTime = (date: string, time: string) => {
-    if (!date || !time) return 'N/A';
-    return `${date} ${time}`;
-  };
-
-  const renderFilterChips = (
-    options: Array<{ label: string; value: string }>,
-    selectedValue: string,
-    onSelect: (value: string) => void
-  ) => (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
-      {options.map((option) => (
-        <TouchableOpacity
-          key={option.value}
-          style={[styles.filterChip, selectedValue === option.value && styles.filterChipActive]}
-          onPress={() => onSelect(option.value)}
-        >
-          <Text style={[styles.filterChipText, selectedValue === option.value && styles.filterChipTextActive]}>
-            {option.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  );
-
-  const getStatusStyle = (status: InOutRecord['status']) => {
+  const getStatusStyle = (status: WarehouseItem['status']) => {
     switch (status) {
-      case '완료':
-        return {
-          color: COLORS.statusCompleted,
-          icon: 'checkmark-done-outline',
-          label: '완료',
-        };
-      // 다른 상태가 있다면 여기에 추가
-      default:
-        return {
-          color: COLORS.textMuted,
-          icon: 'help-circle-outline',
-          label: status,
-        };
+      case 'in_progress': return { color: COLORS.statusInProgress, icon: 'sync-circle-outline', label: '진행중' };
+      case 'pending': return { color: COLORS.statusPending, icon: 'time-outline', label: '예약' };
+      case 'completed': return { color: COLORS.statusCompleted, icon: 'checkmark-done-outline', label: '완료' };
+      default: return { color: COLORS.textMuted, icon: 'help-circle-outline', label: '알 수 없음' };
     }
   };
 
-  const renderHistoryItem = ({ item }: { item: InOutRecord }) => {
-    const isOutbound = item.type === 'outbound';
+  const formatDateTime = (dateTimeString: string) => {
+    if (!dateTimeString) return 'N/A';
+    const date = new Date(dateTimeString);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  };
+
+  const renderWarehouseItem = ({ item }: { item: WarehouseItem }) => {
     const statusStyle = getStatusStyle(item.status);
+    const isOutbound = item.type === 'outbound';
 
     return (
       <View style={styles.itemCard}>
         <View style={styles.cardHeader}>
           <View style={[styles.typeBadge, isOutbound ? styles.outboundBadge : styles.inboundBadge]}>
-            <Ionicons name={isOutbound ? 'arrow-up' : 'arrow-down'} size={14} color={isOutbound ? COLORS.error : COLORS.success} />
+            <Ionicons name={isOutbound ? 'arrow-up-circle-outline' : 'arrow-down-circle-outline'} size={16} color={isOutbound ? COLORS.error : COLORS.success} />
             <Text style={[styles.typeText, isOutbound ? styles.outboundText : styles.inboundText]}>
               {isOutbound ? '출고' : '입고'}
             </Text>
           </View>
           <View style={styles.statusContainer}>
-            <Ionicons name="checkmark" size={16} color={statusStyle.color} />
+            <Ionicons name={statusStyle.icon as any} size={16} color={statusStyle.color} />
             <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusStyle.label}</Text>
           </View>
         </View>
         
         <View style={styles.itemInfo}>
-          <Text style={styles.productName} numberOfLines={1}>{item.productName}</Text>
+          <Text style={styles.productName}>{item.productName}</Text>
           <Text style={styles.itemSku}>SKU: {item.sku}</Text>
         </View>
 
         <View style={styles.detailGrid}>
           <View style={styles.detailRow}><Text style={styles.detailLabel}>개별코드</Text><Text style={styles.detailValue}>{item.individualCode}</Text></View>
+          <View style={styles.detailRow}><Text style={styles.detailLabel}>규격</Text><Text style={styles.detailValue}>{item.specification}</Text></View>
           <View style={styles.detailRow}><Text style={styles.detailLabel}>수량</Text><Text style={[styles.detailValue, styles.quantityValue]}>{item.quantity} 개</Text></View>
           <View style={styles.detailRow}><Text style={styles.detailLabel}>위치</Text><Text style={styles.detailValue}>{item.location}</Text></View>
-          <View style={styles.detailRow}><Text style={styles.detailLabel}>거래처</Text><Text style={styles.detailValue} numberOfLines={1}>{item.company}</Text></View>
+          <View style={styles.detailRow}><Text style={styles.detailLabel}>거래처</Text><Text style={styles.detailValue}>{item.companyName}</Text></View>
+          {isOutbound && <View style={styles.detailRow}><Text style={styles.detailLabel}>목적지</Text><Text style={styles.detailValue}>{item.destination}</Text></View>}
         </View>
 
-        <Text style={styles.dateTimeText}>{formatDateTime(item.date, item.time)}</Text>
+        <Text style={styles.dateTimeText}>{formatDateTime(item.dateTime)}</Text>
       </View>
     );
   };
 
-  if (isLoading && !inOutRecords) {
+  if (isLoading && !items) {
     return <SafeAreaView style={styles.container}><LoadingSpinner /></SafeAreaView>;
   }
 
   return (
     <SafeAreaView style={styles.container}>
       <Header 
-        title="입출고 내역" 
-        subtitle="완료된 입출고 내역" 
+        title="입출고 현황" 
+        subtitle="현재 진행중인 입출고 목록" 
         showBack
         rightComponent={
           <TouchableOpacity style={styles.searchButton} onPress={() => setSearchVisible(!searchVisible)}>
@@ -176,7 +153,7 @@ export default function WarehouseHistoryScreen() {
       {searchVisible && (
         <View style={styles.toolbar}>
           <SearchBar
-            placeholder="품목명, SKU, 개별코드, 거래처 검색..."
+            placeholder="품목명, SKU, 거래처 검색..."
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -187,37 +164,55 @@ export default function WarehouseHistoryScreen() {
         <View style={styles.collapsibleContent}>
           <View style={styles.summaryContainer}>
             <View style={styles.summaryCard}>
-              <Ionicons name="arrow-down-circle-outline" size={24} color={COLORS.success} />
-              <Text style={styles.summaryValue}>{todaySummary.inbound}</Text>
-              <Text style={styles.summaryLabel}>입고완료</Text>
+              <Ionicons name="sync-circle-outline" size={24} color={COLORS.statusInProgress} />
+              <Text style={styles.summaryValue}>{todaySummary.inProgress}</Text>
+              <Text style={styles.summaryLabel}>진행중</Text>
             </View>
             <View style={styles.summaryCard}>
-              <Ionicons name="arrow-up-circle-outline" size={24} color={COLORS.error} />
-              <Text style={styles.summaryValue}>{todaySummary.outbound}</Text>
-              <Text style={styles.summaryLabel}>출고완료</Text>
+              <Ionicons name="time-outline" size={24} color={COLORS.statusPending} />
+              <Text style={styles.summaryValue}>{todaySummary.pending}</Text>
+              <Text style={styles.summaryLabel}>예약</Text>
             </View>
           </View>
           <View style={styles.filterToolbar}>
-            {renderFilterChips(FILTER_OPTIONS.type, activeType, setActiveType)}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
+              {FILTER_OPTIONS.map(opt => (
+                <TouchableOpacity 
+                  key={opt.value} 
+                  style={[styles.filterChip, activeFilter === opt.value && styles.filterChipActive]}
+                  onPress={() => setActiveFilter(opt.value)}
+                >
+                  <Text style={[styles.filterChipText, activeFilter === opt.value && styles.filterChipTextActive]}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         </View>
       </CollapsibleSection>
 
       <FlatList
-        data={filteredRecords}
-        renderItem={renderHistoryItem}
+        data={filteredItems}
+        renderItem={renderWarehouseItem}
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="file-tray-outline" size={48} color={COLORS.textMuted} />
+            <Ionicons name="file-tray-stacked-outline" size={48} color={COLORS.textMuted} />
             <Text style={styles.emptyText}>
-              {searchQuery || activeType !== 'all' ? '조건에 맞는 내역이 없습니다.' : '입출고 내역이 없습니다.'}
+              {searchQuery || activeFilter !== 'all' ? '조건에 맞는 현황이 없습니다.' : '입출고 현황이 없습니다.'}
             </Text>
           </View>
         }
       />
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate('WarehouseForm' as never)}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="add" size={24} color="white" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -304,26 +299,19 @@ const styles = StyleSheet.create({
   typeText: { fontSize: SIZES.fontSM, fontWeight: 'bold', marginLeft: SIZES.xs },
   inboundText: { color: COLORS.success },
   outboundText: { color: COLORS.error },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SIZES.xs,
-  },
-  statusText: {
-    fontSize: SIZES.fontSM,
-    fontWeight: '600',
-  },
+  statusContainer: { flexDirection: 'row', alignItems: 'center', gap: SIZES.xs },
+  statusText: { fontSize: SIZES.fontSM, fontWeight: '600' },
   itemInfo: {
-    paddingBottom: SIZES.sm,
-    marginBottom: SIZES.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    paddingBottom: SIZES.md,
+    marginBottom: SIZES.md,
   },
   productName: { fontSize: SIZES.fontLG, fontWeight: 'bold', color: COLORS.textPrimary },
   itemSku: { fontSize: SIZES.fontSM, color: COLORS.textSecondary },
   detailGrid: {
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    paddingTop: SIZES.md,
     gap: SIZES.sm,
+    marginBottom: SIZES.md,
   },
   detailRow: {
     flexDirection: 'row',
@@ -331,12 +319,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   detailLabel: { fontSize: SIZES.fontSM, color: COLORS.textSecondary },
-  detailValue: { fontSize: SIZES.fontSM, color: COLORS.textPrimary, fontWeight: '500', flex: 1, textAlign: 'right' },
+  detailValue: { fontSize: SIZES.fontSM, color: COLORS.textPrimary, fontWeight: '500' },
   quantityValue: { color: COLORS.primary, fontWeight: 'bold' },
   dateTimeText: {
     fontSize: SIZES.fontXS,
     color: COLORS.textMuted,
     textAlign: 'right',
+    marginTop: SIZES.sm,
   },
   emptyContainer: {
     flex: 1,
@@ -350,5 +339,17 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     marginTop: SIZES.md,
     textAlign: 'center',
+  },
+  fab: {
+    position: 'absolute',
+    right: SIZES.lg,
+    bottom: SIZES.lg + 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
   },
 });

@@ -3,7 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StyleSheet, Text, Platform, Animated } from 'react-native';
 import { SafeAreaProvider } from "react-native-safe-area-context";
-// import { Toaster } from 'sonner-native'; // SVG 에러로 인해 임시 주석 처리
+// import { Toaster } from 'sonner-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -19,6 +19,7 @@ import ProductFormScreen from './screens/ProductFormScreen';
 import WarehouseScreen from './screens/WarehouseScreen';
 import WarehouseHistoryScreen from './screens/WarehouseHistoryScreen';
 import WarehouseRequestScreen from './screens/WarehouseRequestScreen';
+import WarehouseCurrentScreen from './screens/WarehouseCurrentScreen';
 import WarehouseFormScreen from './screens/WarehouseFormScreen';
 import InventoryScreen from './screens/InventoryScreen';
 import ProfileScreen from './screens/ProfileScreen';
@@ -223,6 +224,7 @@ function AppContent() {
             <Stack.Screen name="ClientForm" component={ClientFormScreen} />
             <Stack.Screen name="ProductForm" component={ProductFormScreen} />
             <Stack.Screen name="WarehouseHistory" component={WarehouseHistoryScreen} />
+            <Stack.Screen name="WarehouseCurrent" component={WarehouseCurrentScreen} />
             <Stack.Screen name="WarehouseRequest" component={WarehouseRequestScreen} />
             <Stack.Screen name="WarehouseHistoryDetail" component={WarehouseHistoryDetailScreen} />
             <Stack.Screen name="WarehouseForm" component={WarehouseFormScreen} />

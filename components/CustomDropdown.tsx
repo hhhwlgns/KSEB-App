@@ -6,8 +6,9 @@ import {
   Modal,
   FlatList,
   StyleSheet,
+  TextInput,
 } from 'react-native';
-import { ChevronDown, Check } from 'lucide-react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants';
 
 interface CustomDropdownProps<T> {
@@ -16,8 +17,10 @@ interface CustomDropdownProps<T> {
   onSelect: (item: T) => void;
   placeholder: string;
   displayKey: keyof T;
+  label?: string;
   style?: any;
   disabled?: boolean;
+  searchable?: boolean;
 }
 
 function CustomDropdown<T extends Record<string, any>>({
@@ -26,15 +29,25 @@ function CustomDropdown<T extends Record<string, any>>({
   onSelect,
   placeholder,
   displayKey,
+  label,
   style,
   disabled = false,
+  searchable = false,
 }: CustomDropdownProps<T>) {
   const [isVisible, setIsVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleSelect = (item: T) => {
     onSelect(item);
     setIsVisible(false);
+    setSearchQuery('');
   };
+
+  const filteredData = searchable && searchQuery
+    ? data.filter(item => 
+        String(item[displayKey]).toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : data;
 
   const renderItem = ({ item }: { item: T }) => (
     <TouchableOpacity 
@@ -51,13 +64,14 @@ function CustomDropdown<T extends Record<string, any>>({
         {item[displayKey]}
       </Text>
       {value && value[displayKey] === item[displayKey] && (
-        <Check size={16} color={COLORS.primary} />
+        <Ionicons name="checkmark" size={16} color={COLORS.primary} />
       )}
     </TouchableOpacity>
   );
 
   return (
     <View style={[styles.container, style]}>
+      {label && <Text style={styles.label}>{label}</Text>}
       <TouchableOpacity
         style={[
           styles.dropdown,
@@ -73,7 +87,8 @@ function CustomDropdown<T extends Record<string, any>>({
         ]}>
           {value ? value[displayKey] : placeholder}
         </Text>
-        <ChevronDown 
+        <Ionicons 
+          name="chevron-down" 
           size={20} 
           color={disabled ? COLORS.textMuted : COLORS.textSecondary} 
         />
@@ -92,14 +107,27 @@ function CustomDropdown<T extends Record<string, any>>({
         >
           <View style={styles.modal}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{placeholder}</Text>
+              <Text style={styles.modalTitle}>{label || placeholder}</Text>
               <TouchableOpacity onPress={() => setIsVisible(false)}>
                 <Text style={styles.closeButton}>닫기</Text>
               </TouchableOpacity>
             </View>
             
+            {searchable && (
+              <View style={styles.searchContainer}>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="검색..."
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholderTextColor={COLORS.textMuted}
+                />
+                <Ionicons name="search" size={16} color={COLORS.textMuted} />
+              </View>
+            )}
+            
             <FlatList
-              data={data}
+              data={filteredData}
               keyExtractor={(item, index) => `${item[displayKey]}-${index}`}
               renderItem={renderItem}
               style={styles.dropdownList}
@@ -115,6 +143,12 @@ function CustomDropdown<T extends Record<string, any>>({
 const styles = StyleSheet.create({
   container: {
     marginVertical: SIZES.sm,
+  },
+  label: {
+    fontSize: SIZES.fontMD,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginBottom: SIZES.xs,
   },
   dropdown: {
     flexDirection: 'row',
@@ -174,6 +208,21 @@ const styles = StyleSheet.create({
     fontSize: SIZES.fontMD,
     color: COLORS.primary,
     fontWeight: '500',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SIZES.md,
+    paddingVertical: SIZES.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: SIZES.fontMD,
+    color: COLORS.textPrimary,
+    paddingVertical: SIZES.xs,
+    paddingRight: SIZES.sm,
   },
   dropdownList: {
     maxHeight: 300,
