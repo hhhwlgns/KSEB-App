@@ -3,7 +3,10 @@ export interface Item {
   itemId: number;
   itemName: string;
   itemCode: string;
-  specification: string;
+  itemGroup: string;
+  spec: string;
   unit: string;
-  price: number;
+  unitPriceIn: number;
+  unitPriceOut: number;
+  createdAt: string;
 }

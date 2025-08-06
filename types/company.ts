@@ -3,7 +3,9 @@ export interface Company {
   companyId: number;
   companyName: string;
   companyCode: string;
+  contactPerson: string;
+  contactPhone: string;
+  contactEmail: string;
   address: string;
-  contact: string;
-  email: string;
+  type: string[];
 }

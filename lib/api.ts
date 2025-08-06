@@ -288,7 +288,7 @@ export async function fetchInventoryData(): Promise<InventoryItem[]> {
       id: (index + 1).toString(),
       name: backendItem.itemName,
       sku: item?.itemCode || `SKU-${backendItem.itemId}`,
-      specification: item?.specification || 'N/A',
+      specification: item?.spec || 'N/A',
       quantity: backendItem.quantity,
       inboundScheduled: inboundScheduled,
       outboundScheduled: outboundScheduled,

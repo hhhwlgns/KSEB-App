@@ -23,8 +23,7 @@ export interface Product {
   code: string;
   name: string;
   group: string;
-  specification: string;
-  barcode: string;
+  spec: string;
   inboundPrice: number;
   outboundPrice: number;
   notes?: string;

@@ -63,7 +63,9 @@ export default function ProductListScreen() {
     const filtered = items.filter(
       (item) =>
         item.itemName.toLowerCase().includes(query.toLowerCase()) ||
-        item.itemCode.toLowerCase().includes(query.toLowerCase())
+        item.itemCode.toLowerCase().includes(query.toLowerCase()) ||
+        (item.itemGroup || '').toLowerCase().includes(query.toLowerCase()) ||
+        (item.spec || '').toLowerCase().includes(query.toLowerCase())
     );
     setFilteredItems(filtered);
   };
@@ -84,7 +86,20 @@ export default function ProductListScreen() {
   };
 
   const handleEdit = (item: Item) => {
-    navigation.navigate('ProductForm', { product: item });
+    // Item 타입을 Product 타입으로 변환
+    const product = {
+      id: item.itemId.toString(),
+      code: item.itemCode,
+      name: item.itemName,
+      group: item.itemGroup || '',
+      spec: item.spec || '',
+      barcode: '', // Item 타입에는 barcode가 없으므로 빈 문자열
+      inboundPrice: item.unitPriceIn || 0,
+      outboundPrice: item.unitPriceOut || 0,
+      notes: '',
+      createdAt: item.createdAt || new Date().toISOString(),
+    };
+    navigation.navigate('ProductForm', { product });
   };
 
   const formatPrice = (price: number) => {
@@ -101,19 +116,29 @@ export default function ProductListScreen() {
         </View>
         <View style={styles.detailGrid}>
           <View style={styles.detailRow}>
+            <Ionicons name="folder-outline" size={14} color={COLORS.textSecondary} style={styles.icon} />
+            <Text style={styles.detailLabel}>품목그룹</Text>
+            <Text style={styles.detailValue}>{item.itemGroup || 'N/A'}</Text>
+          </View>
+          <View style={styles.detailRow}>
             <Ionicons name="options-outline" size={14} color={COLORS.textSecondary} style={styles.icon} />
             <Text style={styles.detailLabel}>규격</Text>
-            <Text style={styles.detailValue}>{item.specification}</Text>
+            <Text style={styles.detailValue}>{item.spec || 'N/A'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Ionicons name="cube-outline" size={14} color={COLORS.textSecondary} style={styles.icon} />
             <Text style={styles.detailLabel}>단위</Text>
-            <Text style={styles.detailValue}>{item.unit}</Text>
+            <Text style={styles.detailValue}>{item.unit || 'N/A'}</Text>
           </View>
           <View style={styles.detailRow}>
-            <Ionicons name="cash-outline" size={14} color={COLORS.textSecondary} style={styles.icon} />
-            <Text style={styles.detailLabel}>가격</Text>
-            <Text style={styles.detailValue}>{formatPrice(item.price)}</Text>
+            <Ionicons name="arrow-down-outline" size={14} color={COLORS.success} style={styles.icon} />
+            <Text style={styles.detailLabel}>입고단가</Text>
+            <Text style={styles.detailValue}>{formatPrice(item.unitPriceIn)}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Ionicons name="arrow-up-outline" size={14} color={COLORS.primary} style={styles.icon} />
+            <Text style={styles.detailLabel}>출고단가</Text>
+            <Text style={styles.detailValue}>{formatPrice(item.unitPriceOut)}</Text>
           </View>
         </View>
       </View>
@@ -156,7 +181,7 @@ export default function ProductListScreen() {
 
       {searchVisible && (
         <SearchBar
-          placeholder="품목명, 코드, 그룹, 바코드 검색..."
+          placeholder="품목명, 코드, 그룹, 규격 검색..."
           value={searchQuery}
           onChangeText={handleSearch}
         />

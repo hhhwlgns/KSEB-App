@@ -57,7 +57,7 @@ export default function ProductFormScreen() {
   });
 
   const [formData, setFormData] = useState<ProductFormData>({
-    code: '', name: '', group: '', specification: '', barcode: '', inboundPrice: '', outboundPrice: '', notes: '',
+    code: '', name: '', group: '', spec: '', inboundPrice: '', outboundPrice: '', notes: '',
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
@@ -141,7 +141,7 @@ export default function ProductFormScreen() {
             {renderInput('품목코드', 'code', '예: PRD001', { required: true })}
             {renderInput('품목명', 'name', '예: 씽크패드 X1 카본', { required: true })}
             {renderInput('품목그룹', 'group', '예: 노트북')}
-            {renderInput('규격', 'specification', '예: 14인치, i7, 16GB RAM')}
+            {renderInput('규격', 'spec', '예: 14인치, i7, 16GB RAM')}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>바코드</Text>
               <View style={styles.barcodeContainer}>

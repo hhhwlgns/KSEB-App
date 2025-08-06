@@ -63,7 +63,10 @@ export default function ClientListScreen() {
     const filtered = companies.filter(
       (company) =>
         company.companyName.toLowerCase().includes(query.toLowerCase()) ||
-        company.companyCode.toLowerCase().includes(query.toLowerCase())
+        company.companyCode.toLowerCase().includes(query.toLowerCase()) ||
+        (company.contactPerson || '').toLowerCase().includes(query.toLowerCase()) ||
+        (company.contactPhone || '').toLowerCase().includes(query.toLowerCase()) ||
+        (company.contactEmail || '').toLowerCase().includes(query.toLowerCase())
     );
     setFilteredCompanies(filtered);
   };
@@ -84,7 +87,20 @@ export default function ClientListScreen() {
   };
 
   const handleEdit = (company: Company) => {
-    navigation.navigate('ClientForm', { client: company });
+    // Company 타입을 Client 타입으로 변환
+    const client = {
+      id: company.companyId.toString(),
+      code: company.companyCode,
+      name: company.companyName,
+      type: company.type?.includes('매입처') ? '매입처' : '납품처' as '매입처' | '납품처',
+      representative: company.contactPerson || '',
+      phone: company.contactPhone || '',
+      email: company.contactEmail || '',
+      address: company.address || '',
+      notes: '',
+      createdAt: new Date().toISOString(),
+    };
+    navigation.navigate('ClientForm', { client });
   };
 
   const renderClientItem = ({ item }: { item: Company }) => (
@@ -93,11 +109,26 @@ export default function ClientListScreen() {
         <View style={styles.clientHeader}>
           <Text style={styles.clientName}>{item.companyName}</Text>
           <Text style={styles.clientCode}>({item.companyCode})</Text>
+          <View style={styles.typeContainer}>
+            {item.type && item.type.map((type, index) => (
+              <View key={index} style={[styles.typeBadge, type === '매입처' ? styles.supplierBadge : styles.customerBadge]}>
+                <Text style={[styles.typeText, type === '매입처' ? styles.supplierText : styles.customerText]}>{type}</Text>
+              </View>
+            ))}
+          </View>
         </View>
         <View style={styles.clientDetails}>
           <View style={styles.detailRow}>
+            <Ionicons name="person-outline" size={14} color={COLORS.textSecondary} />
+            <Text style={styles.clientDetail}>{item.contactPerson || 'N/A'}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Ionicons name="call-outline" size={14} color={COLORS.textSecondary} />
+            <Text style={styles.clientDetail}>{item.contactPhone || 'N/A'}</Text>
+          </View>
+          <View style={styles.detailRow}>
             <Ionicons name="mail-outline" size={14} color={COLORS.textSecondary} />
-            <Text style={styles.clientDetail}>{item.email || 'N/A'}</Text>
+            <Text style={styles.clientDetail}>{item.contactEmail || 'N/A'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Ionicons name="location-outline" size={14} color={COLORS.textSecondary} />
@@ -234,6 +265,22 @@ const styles = StyleSheet.create({
   typeText: {
     fontSize: SIZES.fontXS,
     fontWeight: '600',
+  },
+  typeContainer: {
+    flexDirection: 'row',
+    marginLeft: SIZES.sm,
+  },
+  supplierBadge: {
+    backgroundColor: '#E3F2FD',
+  },
+  customerBadge: {
+    backgroundColor: '#E8F5E8',
+  },
+  supplierText: {
+    color: '#1976D2',
+  },
+  customerText: {
+    color: '#388E3C',
   },
   clientName: {
     fontSize: SIZES.fontLG,
