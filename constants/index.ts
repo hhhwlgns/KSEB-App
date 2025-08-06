@@ -57,38 +57,46 @@ export const SIZES = {
   radiusXL: 16,
 };
 
-export const API_BASE_URL = 'https://api.myserver.com';
+export const API_BASE_URL = 'https://smart-wms-be.onrender.com';
 
 export const ENDPOINTS = {
   AUTH: {
-    LOGIN: '/auth/login',
-    LOGOUT: '/auth/logout',
-    PROFILE: '/auth/profile',
+    LOGIN: '/api/auth/login',
+    LOGOUT: '/api/auth/logout',
+    PROFILE: '/api/auth/me',
   },
-  CLIENTS: {
-    LIST: '/clients',
-    CREATE: '/clients',
-    UPDATE: '/clients',
-    DELETE: '/clients',
+  COMPANIES: {
+    LIST: '/api/companies',
+    CREATE: '/api/companies',
+    UPDATE: '/api/companies',
+    DELETE: '/api/companies',
   },
-  PRODUCTS: {
-    LIST: '/products',
-    CREATE: '/products',
-    UPDATE: '/products',
-    DELETE: '/products',
+  ITEMS: {
+    LIST: '/api/items',
+    CREATE: '/api/items',
+    UPDATE: '/api/items',
+    DELETE: '/api/items',
   },
-  WAREHOUSE: {
-    CURRENT: '/warehouse/current',
-    HISTORY: '/warehouse/history',
-    REQUESTS: '/warehouse/requests',
-    CREATE: '/warehouse',
-    UPDATE: '/warehouse',
-    APPROVE: '/warehouse/approve',
-    REJECT: '/warehouse/reject',
+  INOUT: {
+    ORDERS: '/api/inout/orders',
+    STATUS: '/api/inout/orders',
   },
   INVENTORY: {
-    LIST: '/inventory',
-    SEARCH: '/inventory/search',
+    LIST: '/api/inventory',
+  },
+  USERS: {
+    LIST: '/api/users',
+    CREATE: '/api/users',
+    UPDATE: '/api/users',
+    DELETE: '/api/users',
+  },
+  SCHEDULES: {
+    LIST: '/api/schedules',
+    CREATE: '/api/schedules',
+    DELETE: '/api/schedules',
+  },
+  DASHBOARD: {
+    SUMMARY: '/api/dashboard/summary',
   },
 };
 

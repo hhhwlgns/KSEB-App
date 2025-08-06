@@ -18,8 +18,8 @@ import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CollapsibleSection from '../components/CollapsibleSection';
 import { COLORS, SIZES } from '../constants';
-import { WarehouseHistoryItem } from '../types';
-import { getWarehouseHistory } from '../lib/api';
+import { InOutRecord } from '../types/inout';
+import { fetchInOutData } from '../lib/api';
 
 const FILTER_OPTIONS = {
   type: [
@@ -31,37 +31,31 @@ const FILTER_OPTIONS = {
 
 export default function WarehouseHistoryScreen() {
   const navigation = useNavigation();
-  const { data: historyItems, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['warehouseHistory'],
-    queryFn: getWarehouseHistory,
+  const { data: inOutRecords, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ['inOutData'],
+    queryFn: fetchInOutData,
   });
 
-  const [filteredItems, setFilteredItems] = useState<WarehouseHistoryItem[]>([]);
+  const [filteredRecords, setFilteredRecords] = useState<InOutRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeType, setActiveType] = useState('all');
   const [searchVisible, setSearchVisible] = useState(false);
 
   const todaySummary = useMemo(() => {
-    if (!historyItems) return { inbound: 0, outbound: 0 };
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    if (!inOutRecords) return { inbound: 0, outbound: 0 };
+    const today = new Date().toISOString().split('T')[0];
     
-    const todayCompletedItems = historyItems.filter(item => {
-      const itemDate = new Date(item.dateTime);
-      itemDate.setHours(0, 0, 0, 0);
-      return itemDate.getTime() === today.getTime() && item.status === 'completed';
-    });
+    const todayCompletedItems = inOutRecords.filter(item => item.date === today && item.status === '완료');
 
     return {
       inbound: todayCompletedItems.filter(item => item.type === 'inbound').length,
       outbound: todayCompletedItems.filter(item => item.type === 'outbound').length,
     };
-  }, [historyItems]);
+  }, [inOutRecords]);
 
   useEffect(() => {
-    if (historyItems) {
-      let baseItems = historyItems.filter(item => item.status === 'completed');
-      let filtered = [...baseItems];
+    if (inOutRecords) {
+      let filtered = [...inOutRecords];
       
       if (activeType !== 'all') {
         filtered = filtered.filter(item => item.type === activeType);
@@ -72,28 +66,20 @@ export default function WarehouseHistoryScreen() {
         filtered = filtered.filter(item =>
           (item.productName || '').toLowerCase().includes(lowercasedQuery) ||
           (item.sku || '').toLowerCase().includes(lowercasedQuery) ||
-          (item.companyName || '').toLowerCase().includes(lowercasedQuery) ||
+          (item.company || '').toLowerCase().includes(lowercasedQuery) ||
           (item.individualCode || '').toLowerCase().includes(lowercasedQuery)
         );
       }
       
-      filtered.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+      filtered.sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
 
-      setFilteredItems(filtered);
+      setFilteredRecords(filtered);
     }
-  }, [historyItems, searchQuery, activeType]);
+  }, [inOutRecords, searchQuery, activeType]);
 
-  const getStatusStyle = (status: WarehouseHistoryItem['status']) => {
-    switch (status) {
-      case 'completed': return { color: COLORS.statusCompleted, icon: 'checkmark-done-outline', label: '완료' };
-      default: return { color: COLORS.textMuted, icon: 'help-circle-outline', label: status };
-    }
-  };
-
-  const formatDateTime = (dateTimeString: string, format: 'time' | 'full') => {
-    if (!dateTimeString) return 'N/A';
-    const date = new Date(dateTimeString);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  const formatDateTime = (date: string, time: string) => {
+    if (!date || !time) return 'N/A';
+    return `${date} ${time}`;
   };
 
   const renderFilterChips = (
@@ -116,8 +102,7 @@ export default function WarehouseHistoryScreen() {
     </ScrollView>
   );
 
-  const renderHistoryItem = ({ item }: { item: WarehouseHistoryItem }) => {
-    const statusStyle = getStatusStyle(item.status);
+  const renderHistoryItem = ({ item }: { item: InOutRecord }) => {
     const isOutbound = item.type === 'outbound';
 
     return (
@@ -130,8 +115,8 @@ export default function WarehouseHistoryScreen() {
             </Text>
           </View>
           <View style={styles.statusContainer}>
-            <Ionicons name={statusStyle.icon as any} size={16} color={statusStyle.color} />
-            <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusStyle.label}</Text>
+            <Ionicons name={'checkmark-done-outline'} size={16} color={COLORS.statusCompleted} />
+            <Text style={[styles.statusText, { color: COLORS.statusCompleted }]}>{item.status}</Text>
           </View>
         </View>
         
@@ -144,16 +129,15 @@ export default function WarehouseHistoryScreen() {
           <View style={styles.detailRow}><Text style={styles.detailLabel}>개별코드</Text><Text style={styles.detailValue}>{item.individualCode}</Text></View>
           <View style={styles.detailRow}><Text style={styles.detailLabel}>수량</Text><Text style={[styles.detailValue, styles.quantityValue]}>{item.quantity} 개</Text></View>
           <View style={styles.detailRow}><Text style={styles.detailLabel}>위치</Text><Text style={styles.detailValue}>{item.location}</Text></View>
-          <View style={styles.detailRow}><Text style={styles.detailLabel}>거래처</Text><Text style={styles.detailValue} numberOfLines={1}>{item.companyName}</Text></View>
-          {item.manager && <View style={styles.detailRow}><Text style={styles.detailLabel}>담당자</Text><Text style={styles.detailValue}>{item.manager}</Text></View>}
+          <View style={styles.detailRow}><Text style={styles.detailLabel}>거래처</Text><Text style={styles.detailValue} numberOfLines={1}>{item.company}</Text></View>
         </View>
 
-        <Text style={styles.dateTimeText}>{formatDateTime(item.dateTime, 'full')}</Text>
+        <Text style={styles.dateTimeText}>{formatDateTime(item.date, item.time)}</Text>
       </View>
     );
   };
 
-  if (isLoading && !historyItems) {
+  if (isLoading && !inOutRecords) {
     return <SafeAreaView style={styles.container}><LoadingSpinner /></SafeAreaView>;
   }
 
@@ -201,7 +185,7 @@ export default function WarehouseHistoryScreen() {
       </CollapsibleSection>
 
       <FlatList
-        data={filteredItems}
+        data={filteredRecords}
         renderItem={renderHistoryItem}
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
