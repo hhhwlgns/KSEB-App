@@ -125,8 +125,8 @@ export default function WarehouseCurrentScreen() {
           <View style={styles.detailRow}><Text style={styles.detailLabel}>수량</Text><Text style={[styles.detailValue, styles.quantityValue]}>{item.quantity} 개</Text></View>
           <View style={styles.detailRow}><Text style={styles.detailLabel}>위치</Text><Text style={styles.detailValue}>{item.location}</Text></View>
           <View style={styles.detailRow}><Text style={styles.detailLabel}>거래처</Text><Text style={styles.detailValue}>{item.companyName}</Text></View>
-          {isOutbound && <View style={styles.detailRow}><Text style={styles.detailLabel}>목적지</Text><Text style={styles.detailValue}>{item.destination}</Text></View>}
         </View>
+          
 
         <Text style={styles.dateTimeText}>{formatDateTime(item.dateTime)}</Text>
       </View>

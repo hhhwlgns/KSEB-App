@@ -125,7 +125,6 @@ export async function getWarehouseCurrent(): Promise<WarehouseItem[]> {
       companyName: order.companyName || 'N/A',
       companyCode: order.companyCode || 'N/A',
       status: order.status === 'PENDING' ? 'pending' : 'in_progress',
-      destination: 'N/A', // Placeholder
       dateTime: order.expectedDate || order.createdAt,
     }))
   );
@@ -149,7 +148,6 @@ export async function fetchInOutData(): Promise<InOutRecord[]> {
       company: record.companyName || 'N/A',
       companyCode: record.companyCode || 'N/A',
       status: '완료', // Explicitly set status to '완료'
-      destination: 'N/A',
       date: (record.createdAt || record.updatedAt || new Date().toISOString()).split('T')[0],
       time: (record.createdAt || record.updatedAt || new Date().toISOString()).split('T')[1]?.substring(0, 8) || '00:00:00',
       notes: 'N/A'

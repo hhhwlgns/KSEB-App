@@ -42,7 +42,6 @@ export interface WarehouseItem {
   companyName: string;
   companyCode: string;
   status: 'completed' | 'in_progress' | 'pending';
-  destination?: string;
   dateTime: string;
   notes?: string;
 }
@@ -59,7 +58,6 @@ export interface WarehouseHistoryItem {
   companyName: string;
   companyCode: string;
   status: 'completed' | 'in_progress' | 'pending';
-  destination?: string;
   dateTime: string;
   notes?: string;
   manager?: string; // 담당자 정보 추가

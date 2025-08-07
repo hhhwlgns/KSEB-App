@@ -11,7 +11,6 @@ export interface InOutRecord {
   company: string;
   companyCode: string;
   status: "완료" | "진행 중" | "예약";
-  destination: string;
   date: string;
   time: string;
   notes: string;
