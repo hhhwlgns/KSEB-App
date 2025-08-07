@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types/user';
 import { Company } from '../types/company';
 import { Item } from '../types/item';
-import { InOutRecord, InOutRequest } from '../types/inout';
+import { InOutRecord } from '../types/inout';
 
 const apiClient = axios.create({
   baseURL: 'http://localhost:8080',
@@ -157,20 +157,6 @@ export async function fetchInOutData(): Promise<InOutRecord[]> {
   );
 }
 
-export async function fetchInOutRequests(): Promise<PendingRequestItem[]> {
-  const response = await apiClient.get('/api/inout/orders');
-  const allData: InOutRequest[] = await handleResponse(response);
-  const pendingOrders = allData.filter(record => record.status === 'PENDING');
-
-  return pendingOrders.flatMap(order => 
-    (order.items || []).map(item => ({
-      type: order.type,
-      status: order.status,
-      itemCode: item.itemCode,
-      quantity: item.requestedQuantity,
-    }))
-  );
-}
 
 export interface InOutOrderRequest {
   type: 'INBOUND' | 'OUTBOUND';
@@ -261,21 +247,30 @@ export async function fetchInventoryData(): Promise<InventoryItem[]> {
     return [];
   }
   
-  const [items, pendingRequests] = await Promise.all([
+  const [items, inOutData] = await Promise.all([
     fetchItems(),
-    fetchInOutRequests()
+    fetchInOutData()
   ]);
   
   const transformedData: InventoryItem[] = backendData.map((backendItem, index) => {
     const item = items.find(i => i.itemId === backendItem.itemId);
     
-    const inboundScheduled = pendingRequests
-      .filter(request => request.type === 'INBOUND' && request.itemCode === item?.itemCode)
-      .reduce((sum, request) => sum + request.quantity, 0);
+    // Calculate scheduled quantities from pending/in-progress inout data
+    const inboundScheduled = inOutData
+      .filter(record => 
+        record.type === 'inbound' && 
+        record.sku === item?.itemCode &&
+        (record.status === '예약' || record.status === '진행 중')
+      )
+      .reduce((sum, record) => sum + record.quantity, 0);
     
-    const outboundScheduled = pendingRequests
-      .filter(request => request.type === 'OUTBOUND' && request.itemCode === item?.itemCode)
-      .reduce((sum, request) => sum + request.quantity, 0);
+    const outboundScheduled = inOutData
+      .filter(record => 
+        record.type === 'outbound' && 
+        record.sku === item?.itemCode &&
+        (record.status === '예약' || record.status === '진행 중')
+      )
+      .reduce((sum, record) => sum + record.quantity, 0);
     
     let status: '정상' | '부족' | '위험' = '정상';
     if (backendItem.quantity <= 0) {

@@ -18,7 +18,6 @@ import ClientFormScreen from './screens/ClientFormScreen';
 import ProductFormScreen from './screens/ProductFormScreen';
 import WarehouseScreen from './screens/WarehouseScreen';
 import WarehouseHistoryScreen from './screens/WarehouseHistoryScreen';
-import WarehouseRequestScreen from './screens/WarehouseRequestScreen';
 import WarehouseCurrentScreen from './screens/WarehouseCurrentScreen';
 import WarehouseFormScreen from './screens/WarehouseFormScreen';
 import InventoryScreen from './screens/InventoryScreen';
@@ -225,7 +224,6 @@ function AppContent() {
             <Stack.Screen name="ProductForm" component={ProductFormScreen} />
             <Stack.Screen name="WarehouseHistory" component={WarehouseHistoryScreen} />
             <Stack.Screen name="WarehouseCurrent" component={WarehouseCurrentScreen} />
-            <Stack.Screen name="WarehouseRequest" component={WarehouseRequestScreen} />
             <Stack.Screen name="WarehouseHistoryDetail" component={WarehouseHistoryDetailScreen} />
             <Stack.Screen name="WarehouseForm" component={WarehouseFormScreen} />
             <Stack.Screen 
