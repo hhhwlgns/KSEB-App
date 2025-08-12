@@ -83,6 +83,15 @@ export default function WarehouseFormScreen() {
     }
   }, [selectedArea, selectedNumber]);
 
+  const { data: companies, isLoading: isLoadingCompanies } = useQuery({
+    queryKey: ['companies'],
+    queryFn: fetchCompanies,
+  });
+  const { data: items, isLoading: isLoadingItems } = useQuery({
+    queryKey: ['items'],
+    queryFn: fetchItems,
+  });
+
   // 바코드 스캔으로 가져온 랙 정보로 품목 자동 선택
   useEffect(() => {
     if (rack && items) {
@@ -102,15 +111,6 @@ export default function WarehouseFormScreen() {
       }
     }
   }, [rack, items]);
-
-  const { data: companies, isLoading: isLoadingCompanies } = useQuery({
-    queryKey: ['companies'],
-    queryFn: fetchCompanies,
-  });
-  const { data: items, isLoading: isLoadingItems } = useQuery({
-    queryKey: ['items'],
-    queryFn: fetchItems,
-  });
 
   const areas = generateAreas();
   const numbers = generateNumbers();
