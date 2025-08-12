@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 // import { toast } from 'sonner-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
@@ -22,7 +22,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { COLORS, SIZES } from '../constants';
 import { Company } from '../types/company';
 import { Item } from '../types/item';
-import { createInboundOrder, createOutboundOrder, fetchCompanies, fetchItems } from '../lib/api';
+import { createInboundOrder, createOutboundOrder, fetchCompanies, fetchItems, RackInfo } from '../lib/api';
 
 // 구역 생성 함수 (A~T)
 const generateAreas = () => {
@@ -43,8 +43,20 @@ const generateNumbers = () => {
   return numbers;
 };
 
+// 라우트 파라미터 타입
+type WarehouseFormRouteParams = {
+  rack?: RackInfo;
+};
+
+type RootStackParamList = {
+  WarehouseForm: WarehouseFormRouteParams;
+};
+
+type WarehouseFormScreenRouteProp = RouteProp<RootStackParamList, 'WarehouseForm'>;
+
 export default function WarehouseFormScreen() {
   const navigation = useNavigation();
+  const route = useRoute<WarehouseFormScreenRouteProp>();
   const queryClient = useQueryClient();
 
   const [type, setType] = useState<'INBOUND' | 'OUTBOUND'>('INBOUND');
@@ -58,6 +70,7 @@ export default function WarehouseFormScreen() {
   const [selectedArea, setSelectedArea] = useState<string>(''); // 구역 선택 (A~T)
   const [selectedNumber, setSelectedNumber] = useState<string>(''); // 번호 선택 (1~12)
   const [location, setLocation] = useState<string>(''); // 조합된 구역 (예: G010)
+  const [rack, setRack] = useState<RackInfo | null>(route.params?.rack || null); // 바코드 스캔된 랙 정보
   const [errors, setErrors] = useState<{ company?: string; item?: string; quantity?: string; date?: string; location?: string }>({});
 
   // 구역과 번호 조합
@@ -69,6 +82,26 @@ export default function WarehouseFormScreen() {
       setLocation('');
     }
   }, [selectedArea, selectedNumber]);
+
+  // 바코드 스캔으로 가져온 랙 정보로 품목 자동 선택
+  useEffect(() => {
+    if (rack && items) {
+      // SKU 기준으로 품목 찾기
+      const matchingItem = items.find(item => item.itemCode === rack.sku);
+      if (matchingItem) {
+        setSelectedItem(matchingItem);
+      }
+      
+      // 위치 정보 설정
+      if (rack.location) {
+        const areaMatch = rack.location.match(/^([A-T])(\d+)$/);
+        if (areaMatch) {
+          setSelectedArea(areaMatch[1]);
+          setSelectedNumber(areaMatch[2]);
+        }
+      }
+    }
+  }, [rack, items]);
 
   const { data: companies, isLoading: isLoadingCompanies } = useQuery({
     queryKey: ['companies'],
@@ -149,20 +182,36 @@ export default function WarehouseFormScreen() {
   const formatDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   const formatTime = (digits: string) => (digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits);
 
-  const renderRackContents = () => (
-    <View style={styles.inputContainer}>
-      <Text style={styles.label}>처리 품목 (랙: {rack?.id})</Text>
-      <View style={styles.rackContentsContainer}>
-        <View style={styles.rackItem}>
-          <View>
-            <Text style={styles.rackItemName} numberOfLines={1}>{rack?.name}</Text>
-            <Text style={styles.rackItemSku}>SKU: {rack?.sku}</Text>
+  const renderRackInfo = () => {
+    if (!rack) return null;
+    
+    return (
+      <View style={styles.rackInfoContainer}>
+        <Text style={styles.label}>스캔된 랙 정보</Text>
+        <View style={styles.rackCard}>
+          <View style={styles.rackHeader}>
+            <Text style={styles.rackId}>랙 ID: {rack.id}</Text>
+            <TouchableOpacity 
+              style={styles.rescanButton} 
+              onPress={() => navigation.navigate('BarcodeScreen' as never, {
+                title: '랙 바코드 스캔',
+                scanMode: 'rackProcess'
+              } as never)}
+            >
+              <Text style={styles.rescanButtonText}>다시 스캔</Text>
+            </TouchableOpacity>
           </View>
-          <Text style={styles.rackItemQuantity}>{rack?.quantity} 개</Text>
+          <View style={styles.rackDetails}>
+            <Text style={styles.rackName}>{rack.name}</Text>
+            <Text style={styles.rackSku}>SKU: {rack.sku}</Text>
+            <Text style={styles.rackSpec}>규격: {rack.specification}</Text>
+            <Text style={styles.rackLocation}>위치: {rack.location}</Text>
+            <Text style={styles.rackQuantity}>재고: {rack.quantity}개</Text>
+          </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   if (isLoadingCompanies || isLoadingItems) {
     return <SafeAreaView style={styles.container}><LoadingSpinner /></SafeAreaView>;
@@ -185,6 +234,9 @@ export default function WarehouseFormScreen() {
                 </TouchableOpacity>
               </View>
             </View>
+
+            {/* 바코드 스캔된 랙 정보 표시 */}
+            {renderRackInfo()}
 
             <CustomDropdown
               label="품목 *"
@@ -323,29 +375,64 @@ const styles = StyleSheet.create({
   submitButton: { flex: 2, height: SIZES.buttonHeight, backgroundColor: COLORS.primary, borderRadius: SIZES.radiusMD, justifyContent: 'center', alignItems: 'center' },
   submitButtonDisabled: { backgroundColor: COLORS.textMuted },
   submitButtonText: { fontSize: SIZES.fontMD, fontWeight: '600', color: 'white' },
-  rackContentsContainer: {
-    backgroundColor: COLORS.surfaceHover,
-    borderRadius: SIZES.radiusMD,
+  rackInfoContainer: {
+    marginBottom: SIZES.lg,
+  },
+  rackCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radiusLG,
     padding: SIZES.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.primary + '30',
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.primary,
   },
-  rackItem: {
+  rackHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: SIZES.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    alignItems: 'center',
+    marginBottom: SIZES.sm,
   },
-  rackItemName: {
-    fontSize: SIZES.fontMD,
-    color: COLORS.textPrimary,
-    flex: 1,
-  },
-  rackItemQuantity: {
+  rackId: {
     fontSize: SIZES.fontMD,
     fontWeight: 'bold',
     color: COLORS.primary,
+  },
+  rescanButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SIZES.sm,
+    paddingVertical: SIZES.xs,
+    borderRadius: SIZES.radius,
+  },
+  rescanButtonText: {
+    color: 'white',
+    fontSize: SIZES.fontXS,
+    fontWeight: '600',
+  },
+  rackDetails: {
+    gap: SIZES.xs,
+  },
+  rackName: {
+    fontSize: SIZES.fontLG,
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
+  },
+  rackSku: {
+    fontSize: SIZES.fontSM,
+    color: COLORS.textSecondary,
+  },
+  rackSpec: {
+    fontSize: SIZES.fontSM,
+    color: COLORS.textSecondary,
+  },
+  rackLocation: {
+    fontSize: SIZES.fontSM,
+    color: COLORS.textSecondary,
+  },
+  rackQuantity: {
+    fontSize: SIZES.fontMD,
+    fontWeight: 'bold',
+    color: COLORS.success,
   },
   locationContainer: {
     flexDirection: 'row',

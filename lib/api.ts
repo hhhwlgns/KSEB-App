@@ -131,28 +131,52 @@ export async function getWarehouseCurrent(): Promise<WarehouseItem[]> {
   );
 }
 
+// 백엔드 상태를 앱 표시용 상태로 변환
+function transformStatus(backendStatus: string): string {
+  switch (backendStatus?.toLowerCase()) {
+    case 'completed':
+      return '완료';
+    case 'pending':
+      return '진행 중';
+    case 'scheduled':
+      return '예약';
+    case 'cancelled':
+      return '취소';
+    case 'rejected':
+      return '거절';
+    default:
+      return '알 수 없음';
+  }
+}
+
 export async function fetchInOutData(): Promise<InOutRecord[]> {
   const response = await apiClient.get('/api/inout/orders');
   const allData = await handleResponse(response);
-  const completedData = allData.filter(record => record.status === 'COMPLETED');
   
-  return completedData.flatMap(record => 
-    record.items.map((item, itemIndex) => ({
-      id: `${record.orderId}-${itemIndex}`,
-      type: record.type?.toLowerCase() || 'inbound',
-      productName: item.itemName || 'N/A',
-      sku: item.itemCode || 'N/A',
-      individualCode: `ORDER-${record.orderId}-${item.itemId}`,
-      specification: item.specification || 'N/A',
-      quantity: item.requestedQuantity || 0,
-      location: 'A-01', // Default location
-      company: record.companyName || 'N/A',
-      companyCode: record.companyCode || 'N/A',
-      status: '완료', // Explicitly set status to '완료'
-      date: (record.createdAt || record.updatedAt || new Date().toISOString()).split('T')[0],
-      time: (record.createdAt || record.updatedAt || new Date().toISOString()).split('T')[1]?.substring(0, 8) || '00:00:00',
-      notes: 'N/A'
-    }))
+  // 웹과 동일하게 모든 데이터를 가져온 후 필터링은 화면에서
+  return allData.flatMap(record => 
+    record.items.map((item, itemIndex) => {
+      const dateTime = record.createdAt || record.updatedAt || new Date().toISOString();
+      const date = dateTime.split('T')[0];
+      const time = dateTime.split('T')[1]?.substring(0, 8) || '00:00:00';
+      
+      return {
+        id: `${record.orderId}-${itemIndex}`,
+        type: record.type?.toLowerCase() || 'inbound',
+        productName: item.itemName || 'N/A',
+        sku: item.itemCode || 'N/A',
+        individualCode: `ORDER-${record.orderId}-${item.itemId}`,
+        specification: item.specification || 'N/A',
+        quantity: item.requestedQuantity || 0,
+        location: 'A-01',
+        company: record.companyName || 'N/A',
+        companyCode: record.companyCode || 'N/A',
+        status: transformStatus(record.status),
+        date: date,
+        time: time,
+        notes: 'N/A'
+      };
+    })
   );
 }
 
@@ -343,5 +367,36 @@ export async function updateUser(id: number, userData: Partial<User>): Promise<U
 
 export async function deleteUser(id: number): Promise<void> {
   await apiClient.delete(`/api/users/${id}`);
+}
+
+// --- Barcode & Rack ---
+export interface RackInfo {
+  id: string;
+  name: string;
+  sku: string;
+  quantity: number;
+  location: string;
+  specification: string;
+}
+
+export async function getRackContents(barcode: string): Promise<RackInfo> {
+  // 바코드를 통해 랙 정보를 가져오는 API (실제 구현은 백엔드 API에 따라 달라질 수 있음)
+  try {
+    const response = await apiClient.get(`/api/inventory/rack/${barcode}`);
+    return handleResponse(response);
+  } catch (error) {
+    // 백엔드에 해당 API가 없을 경우 목업 데이터 반환
+    console.warn('랙 정보 API 호출 실패, 목업 데이터 사용:', error);
+    
+    // 목업 데이터 (실제 구현에서는 제거)
+    return {
+      id: barcode,
+      name: '샘플 품목',
+      sku: `SKU-${barcode.slice(-4)}`,
+      quantity: Math.floor(Math.random() * 100) + 1,
+      location: `A${String(Math.floor(Math.random() * 12) + 1).padStart(3, '0')}`,
+      specification: '표준 규격'
+    };
+  }
 }
 

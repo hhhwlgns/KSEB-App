@@ -12,7 +12,7 @@ export interface InOutRecord {
   location: string;
   company: string;
   companyCode: string;
-  status: OrderStatus;
+  status: string; // 한글 상태 문자열로 변경
   date: string;
   time: string;
   notes: string;

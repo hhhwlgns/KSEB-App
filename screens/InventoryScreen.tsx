@@ -41,8 +41,7 @@ export default function InventoryScreen() {
         filtered = filtered.filter(item =>
           item.name.toLowerCase().includes(lowercasedQuery) ||
           item.sku.toLowerCase().includes(lowercasedQuery) ||
-          item.specification.toLowerCase().includes(lowercasedQuery) ||
-          item.location.toLowerCase().includes(lowercasedQuery)
+          item.specification.toLowerCase().includes(lowercasedQuery)
         );
       }
       
@@ -94,7 +93,6 @@ export default function InventoryScreen() {
         
         <View style={styles.detailGrid}>
           <View style={styles.detailRow}><Text style={styles.detailLabel}>규격</Text><Text style={styles.detailValue}>{item.specification}</Text></View>
-          <View style={styles.detailRow}><Text style={styles.detailLabel}>위치</Text><Text style={styles.detailValue}>{item.location}</Text></View>
           <View style={styles.detailRow}><Text style={styles.detailLabel}>현재고</Text><Text style={[styles.detailValue, styles.quantityValue]}>{item.quantity}</Text></View>
           <View style={styles.detailRow}><Text style={styles.detailLabel}>입고예정</Text><Text style={[styles.detailValue, styles.inboundValue]}>{item.inboundScheduled}</Text></View>
           <View style={styles.detailRow}><Text style={styles.detailLabel}>출고예정</Text><Text style={[styles.detailValue, styles.outboundValue]}>{item.outboundScheduled}</Text></View>
@@ -125,7 +123,7 @@ export default function InventoryScreen() {
 
       {isSearchVisible && (
         <View style={styles.toolbar}>
-          <SearchBar placeholder="품목명, SKU, 규격, 위치 검색..." value={searchQuery} onChangeText={setSearchQuery} />
+          <SearchBar placeholder="품목명, SKU, 규격 검색..." value={searchQuery} onChangeText={setSearchQuery} />
         </View>
       )}
 

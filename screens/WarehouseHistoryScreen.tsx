@@ -46,7 +46,7 @@ export default function WarehouseHistoryScreen() {
     if (!inOutRecords) return { inbound: 0, outbound: 0 };
     const today = new Date().toISOString().split('T')[0];
     
-    const todayCompletedItems = inOutRecords.filter(item => item.date === today && item.status === 'completed');
+    const todayCompletedItems = inOutRecords.filter(item => item.date === today && item.status === '완료');
 
     return {
       inbound: todayCompletedItems.filter(item => item.type === 'inbound').length,
@@ -56,7 +56,8 @@ export default function WarehouseHistoryScreen() {
 
   useEffect(() => {
     if (inOutRecords) {
-      let filtered = [...inOutRecords];
+      // 완료된 것만 필터링 (웹과 동일)
+      let filtered = inOutRecords.filter(item => item.status === '완료');
       
       if (activeType !== 'all') {
         filtered = filtered.filter(item => item.type === activeType);
@@ -103,36 +104,46 @@ export default function WarehouseHistoryScreen() {
     </ScrollView>
   );
 
-  const getStatusStyle = (status: OrderStatus) => {
-    const config = ORDER_STATUS_CONFIG[status];
-    
-    if (!config) {
-      return {
+  const getStatusStyle = (status: string) => {
+    // 한글 상태를 영문으로 매핑
+    const statusMap: Record<string, { color: string; icon: string; label: string }> = {
+      '완료': {
+        color: COLORS.success,
+        icon: 'checkmark-done-outline',
+        label: '완료'
+      },
+      '진행 중': {
+        color: COLORS.primary,
+        icon: 'time-outline',
+        label: '진행 중'
+      },
+      '예약': {
+        color: COLORS.warning,
+        icon: 'calendar-outline',
+        label: '예약'
+      },
+      '취소': {
         color: COLORS.textMuted,
-        icon: 'help-circle-outline',
-        label: '알 수 없음',
-      };
-    }
-
-    // 아이콘 매핑
-    const iconMap = {
-      pending: 'time-outline',
-      scheduled: 'calendar-outline', 
-      rejected: 'close-circle-outline',
-      completed: 'checkmark-done-outline',
-      cancelled: 'ban-outline'
+        icon: 'ban-outline',
+        label: '취소'
+      },
+      '거절': {
+        color: COLORS.error,
+        icon: 'close-circle-outline',
+        label: '거절'
+      }
     };
 
-    return {
-      color: config.textColor,
-      icon: iconMap[status] || 'help-circle-outline',
-      label: config.label,
+    return statusMap[status] || {
+      color: COLORS.textMuted,
+      icon: 'help-circle-outline',
+      label: '알 수 없음'
     };
   };
 
   const renderHistoryItem = ({ item }: { item: InOutRecord }) => {
     const isOutbound = item.type === 'outbound';
-    const statusStyle = getStatusStyle(item.status as OrderStatus);
+    const statusStyle = getStatusStyle(item.status);
 
     return (
       <View style={styles.itemCard}>
@@ -144,7 +155,6 @@ export default function WarehouseHistoryScreen() {
             </Text>
           </View>
           <View style={styles.statusContainer}>
-            <Ionicons name="checkmark" size={16} color={statusStyle.color} />
             <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusStyle.label}</Text>
           </View>
         </View>
