@@ -50,7 +50,7 @@ export default function SplashScreen() {
         >
           <View style={styles.iconContainer}>
             <Ionicons 
-              name="library" 
+              name="cube" 
               size={48} 
               color="white" 
             />

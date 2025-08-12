@@ -1,4 +1,6 @@
 
+import type { OrderStatus } from '../lib/order-status';
+
 export interface InOutRecord {
   id: string;
   type: "inbound" | "outbound";
@@ -10,7 +12,7 @@ export interface InOutRecord {
   location: string;
   company: string;
   companyCode: string;
-  status: "완료" | "진행 중" | "예약";
+  status: OrderStatus;
   date: string;
   time: string;
   notes: string;

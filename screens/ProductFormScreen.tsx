@@ -154,3 +154,96 @@ export default function ProductFormScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { 
+    flex: 1, 
+    backgroundColor: COLORS.background 
+  },
+  keyboardView: { 
+    flex: 1 
+  },
+  content: { 
+    flex: 1 
+  },
+  form: { 
+    padding: SIZES.lg 
+  },
+  inputContainer: { 
+    marginBottom: SIZES.lg 
+  },
+  label: { 
+    fontSize: SIZES.fontSM, 
+    fontWeight: '600', 
+    color: COLORS.textPrimary, 
+    marginBottom: SIZES.sm 
+  },
+  required: { 
+    color: COLORS.error 
+  },
+  input: { 
+    height: SIZES.inputHeight, 
+    borderWidth: 1, 
+    borderColor: COLORS.border, 
+    borderRadius: SIZES.radiusMD, 
+    paddingHorizontal: SIZES.md, 
+    fontSize: SIZES.fontMD, 
+    backgroundColor: COLORS.surface, 
+    color: COLORS.textPrimary 
+  },
+  multilineInput: { 
+    height: 80, 
+    paddingTop: SIZES.md 
+  },
+  inputError: { 
+    borderColor: COLORS.error 
+  },
+  errorText: { 
+    fontSize: SIZES.fontXS, 
+    color: COLORS.error, 
+    marginTop: SIZES.xs 
+  },
+  priceInputContainer: {
+    flexDirection: 'row',
+    gap: SIZES.md,
+  },
+  buttonContainer: { 
+    flexDirection: 'row', 
+    padding: SIZES.lg, 
+    backgroundColor: COLORS.surface, 
+    borderTopWidth: 1, 
+    borderTopColor: COLORS.border, 
+    gap: SIZES.md 
+  },
+  cancelButton: { 
+    flex: 1, 
+    height: SIZES.buttonHeight, 
+    borderWidth: 1, 
+    borderColor: COLORS.border, 
+    borderRadius: SIZES.radiusMD, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    backgroundColor: COLORS.surface 
+  },
+  cancelButtonText: { 
+    fontSize: SIZES.fontMD, 
+    fontWeight: '600', 
+    color: COLORS.textSecondary 
+  },
+  submitButton: { 
+    flex: 2, 
+    height: SIZES.buttonHeight, 
+    backgroundColor: COLORS.primary, 
+    borderRadius: SIZES.radiusMD, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  submitButtonDisabled: { 
+    backgroundColor: COLORS.textMuted 
+  },
+  submitButtonText: { 
+    fontSize: SIZES.fontMD, 
+    fontWeight: '600', 
+    color: 'white' 
+  },
+});

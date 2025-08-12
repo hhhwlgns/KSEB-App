@@ -86,20 +86,7 @@ export default function ProductListScreen() {
   };
 
   const handleEdit = (item: Item) => {
-    // Item 타입을 Product 타입으로 변환
-    const product = {
-      id: item.itemId.toString(),
-      code: item.itemCode,
-      name: item.itemName,
-      group: item.itemGroup || '',
-      spec: item.spec || '',
-      barcode: '', // Item 타입에는 barcode가 없으므로 빈 문자열
-      inboundPrice: item.unitPriceIn || 0,
-      outboundPrice: item.unitPriceOut || 0,
-      notes: '',
-      createdAt: item.createdAt || new Date().toISOString(),
-    };
-    navigation.navigate('ProductForm', { product });
+    navigation.navigate('ProductForm', { item });
   };
 
   const formatPrice = (price: number) => {

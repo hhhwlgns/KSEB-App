@@ -16,7 +16,7 @@ export default function WarehouseScreen() {
   const menuItems = [
     {
       title: '입출고 현황',
-      subtitle: '현재 예약 또는 진행중인 입출고 목록',
+      subtitle: '현재 대기중 또는 예약된 입출고 목록',
       icon: 'time',
       onPress: () => navigation.navigate('WarehouseCurrent' as never),
       color: COLORS.statusInProgress,

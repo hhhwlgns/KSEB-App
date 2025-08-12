@@ -24,6 +24,25 @@ import { Company } from '../types/company';
 import { Item } from '../types/item';
 import { createInboundOrder, createOutboundOrder, fetchCompanies, fetchItems } from '../lib/api';
 
+// 구역 생성 함수 (A~T)
+const generateAreas = () => {
+  const areas = [];
+  for (let letter = 'A'.charCodeAt(0); letter <= 'T'.charCodeAt(0); letter++) {
+    const area = String.fromCharCode(letter);
+    areas.push({ label: `${area}구역`, value: area });
+  }
+  return areas;
+};
+
+// 번호 생성 함수 (1~12번)
+const generateNumbers = () => {
+  const numbers = [];
+  for (let number = 1; number <= 12; number++) {
+    numbers.push({ label: `${number}번`, value: number.toString() });
+  }
+  return numbers;
+};
+
 export default function WarehouseFormScreen() {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
@@ -36,11 +55,20 @@ export default function WarehouseFormScreen() {
   const [expectedDate, setExpectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ company?: string; item?: string; quantity?: string; date?: string }>({});
+  const [selectedArea, setSelectedArea] = useState<string>(''); // 구역 선택 (A~T)
+  const [selectedNumber, setSelectedNumber] = useState<string>(''); // 번호 선택 (1~12)
+  const [location, setLocation] = useState<string>(''); // 조합된 구역 (예: G010)
+  const [errors, setErrors] = useState<{ company?: string; item?: string; quantity?: string; date?: string; location?: string }>({});
 
+  // 구역과 번호 조합
   useEffect(() => {
-    // Clean up any previous form state if necessary
-  }, []);
+    if (selectedArea && selectedNumber) {
+      const paddedNumber = selectedNumber.padStart(3, '0');
+      setLocation(`${selectedArea}${paddedNumber}`);
+    } else {
+      setLocation('');
+    }
+  }, [selectedArea, selectedNumber]);
 
   const { data: companies, isLoading: isLoadingCompanies } = useQuery({
     queryKey: ['companies'],
@@ -50,6 +78,9 @@ export default function WarehouseFormScreen() {
     queryKey: ['items'],
     queryFn: fetchItems,
   });
+
+  const areas = generateAreas();
+  const numbers = generateNumbers();
 
   const createOrderMutation = useMutation({
     mutationFn: (data: { itemId: number; quantity: number; companyId?: number; expectedDate?: string; }) => {
@@ -74,13 +105,14 @@ export default function WarehouseFormScreen() {
   const isSaving = createOrderMutation.isPending;
 
   const validateForm = (): boolean => {
-    const newErrors: { company?: string; item?: string; quantity?: string; date?: string } = {};
+    const newErrors: { company?: string; item?: string; quantity?: string; date?: string; location?: string } = {};
     if (!selectedCompany) newErrors.company = '거래처를 선택해주세요.';
     if (!selectedItem) newErrors.item = '품목을 선택해주세요.';
     if (!quantity.trim() || isNaN(Number(quantity)) || Number(quantity) <= 0) {
       newErrors.quantity = '올바른 수량을 입력해주세요.';
     }
     if (!expectedDate) newErrors.date = '예정일을 선택해주세요.';
+    if (!location) newErrors.location = '구역을 선택해주세요.';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -191,6 +223,46 @@ export default function WarehouseFormScreen() {
             />
 
             <View style={styles.inputContainer}>
+              <Text style={styles.label}>구역 선택 *</Text>
+              <View style={styles.locationContainer}>
+                <View style={styles.locationItem}>
+                  <Text style={styles.locationSubLabel}>구역</Text>
+                  <CustomDropdown
+                    data={areas}
+                    value={selectedArea ? { label: `${selectedArea}구역`, value: selectedArea } : null}
+                    onSelect={(area: any) => {
+                      setSelectedArea(area.value);
+                      if (errors.location) setErrors(prev => ({ ...prev, location: undefined }));
+                    }}
+                    placeholder="구역"
+                    displayKey="label"
+                    searchable={false}
+                  />
+                </View>
+                <View style={styles.locationItem}>
+                  <Text style={styles.locationSubLabel}>번호</Text>
+                  <CustomDropdown
+                    data={numbers}
+                    value={selectedNumber ? { label: `${selectedNumber}번`, value: selectedNumber } : null}
+                    onSelect={(number: any) => {
+                      setSelectedNumber(number.value);
+                      if (errors.location) setErrors(prev => ({ ...prev, location: undefined }));
+                    }}
+                    placeholder="번호"
+                    displayKey="label"
+                    searchable={false}
+                  />
+                </View>
+              </View>
+              {location && (
+                <View style={styles.locationPreview}>
+                  <Text style={styles.locationPreviewText}>선택된 구역: {location}</Text>
+                </View>
+              )}
+              {errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
+            </View>
+
+            <View style={styles.inputContainer}>
               <Text style={styles.label}>예정일 *</Text>
               <TouchableOpacity onPress={showDatePickerModal} style={[styles.input, styles.dateInput]}>
                 <Text style={styles.dateText}>{expectedDate.toISOString().split('T')[0]}</Text>
@@ -274,5 +346,32 @@ const styles = StyleSheet.create({
     fontSize: SIZES.fontMD,
     fontWeight: 'bold',
     color: COLORS.primary,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    gap: SIZES.md,
+  },
+  locationItem: {
+    flex: 1,
+  },
+  locationSubLabel: {
+    fontSize: SIZES.fontXS,
+    fontWeight: '500',
+    color: COLORS.textSecondary,
+    marginBottom: SIZES.xs,
+  },
+  locationPreview: {
+    marginTop: SIZES.sm,
+    padding: SIZES.sm,
+    backgroundColor: COLORS.surfaceHover,
+    borderRadius: SIZES.radius,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  locationPreviewText: {
+    fontSize: SIZES.fontSM,
+    color: COLORS.primary,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

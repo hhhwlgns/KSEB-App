@@ -21,10 +21,15 @@ import { COLORS, SIZES } from '../constants';
 import { WarehouseItem } from '../types';
 import { getWarehouseCurrent } from '../lib/api';
 
+import { ORDER_STATUS_CONFIG, type OrderStatus } from '../lib/order-status';
+
 const FILTER_OPTIONS = [
   { label: '전체', value: 'all' },
-  { label: '진행중', value: 'in_progress' },
-  { label: '예약', value: 'pending' },
+  { label: '승인대기', value: 'pending' },
+  { label: '예약', value: 'scheduled' },
+  { label: '완료', value: 'completed' },
+  { label: '거절', value: 'rejected' },
+  { label: '취소', value: 'cancelled' },
 ];
 
 export default function WarehouseCurrentScreen() {
@@ -40,7 +45,7 @@ export default function WarehouseCurrentScreen() {
   const [searchVisible, setSearchVisible] = useState(false);
 
   const todaySummary = useMemo(() => {
-    if (!items) return { inProgress: 0, pending: 0 };
+    if (!items) return { pending: 0, scheduled: 0, completed: 0 };
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -51,13 +56,15 @@ export default function WarehouseCurrentScreen() {
     });
 
     return {
-      inProgress: todayItems.filter(item => item.status === 'in_progress').length,
       pending: todayItems.filter(item => item.status === 'pending').length,
+      scheduled: todayItems.filter(item => item.status === 'scheduled').length, // 승인된 것만 입고대기/출고예정에 반영
+      completed: todayItems.filter(item => item.status === 'completed').length,
     };
   }, [items]);
 
   useEffect(() => {
     if (items) {
+      // 완료된 항목은 제외
       let baseItems = items.filter(item => item.status !== 'completed');
       let filtered = [...baseItems];
       
@@ -80,13 +87,27 @@ export default function WarehouseCurrentScreen() {
     }
   }, [items, searchQuery, activeFilter]);
 
-  const getStatusStyle = (status: WarehouseItem['status']) => {
-    switch (status) {
-      case 'in_progress': return { color: COLORS.statusInProgress, icon: 'sync-circle-outline', label: '진행중' };
-      case 'pending': return { color: COLORS.statusPending, icon: 'time-outline', label: '예약' };
-      case 'completed': return { color: COLORS.statusCompleted, icon: 'checkmark-done-outline', label: '완료' };
-      default: return { color: COLORS.textMuted, icon: 'help-circle-outline', label: '알 수 없음' };
+  const getStatusStyle = (status: OrderStatus) => {
+    const config = ORDER_STATUS_CONFIG[status];
+    
+    if (!config) {
+      return { color: COLORS.textMuted, icon: 'help-circle-outline', label: '알 수 없음' };
     }
+
+    // 아이콘 매핑
+    const iconMap = {
+      pending: 'time-outline',
+      scheduled: 'calendar-outline', 
+      rejected: 'close-circle-outline',
+      completed: 'checkmark-done-outline',
+      cancelled: 'ban-outline'
+    };
+
+    return {
+      color: config.textColor,
+      icon: iconMap[status] || 'help-circle-outline',
+      label: config.label
+    };
   };
 
   const formatDateTime = (dateTimeString: string) => {
@@ -96,7 +117,7 @@ export default function WarehouseCurrentScreen() {
   };
 
   const renderWarehouseItem = ({ item }: { item: WarehouseItem }) => {
-    const statusStyle = getStatusStyle(item.status);
+    const statusStyle = getStatusStyle(item.status as OrderStatus);
     const isOutbound = item.type === 'outbound';
 
     return (
@@ -164,13 +185,13 @@ export default function WarehouseCurrentScreen() {
         <View style={styles.collapsibleContent}>
           <View style={styles.summaryContainer}>
             <View style={styles.summaryCard}>
-              <Ionicons name="sync-circle-outline" size={24} color={COLORS.statusInProgress} />
-              <Text style={styles.summaryValue}>{todaySummary.inProgress}</Text>
-              <Text style={styles.summaryLabel}>진행중</Text>
-            </View>
-            <View style={styles.summaryCard}>
               <Ionicons name="time-outline" size={24} color={COLORS.statusPending} />
               <Text style={styles.summaryValue}>{todaySummary.pending}</Text>
+              <Text style={styles.summaryLabel}>승인대기</Text>
+            </View>
+            <View style={styles.summaryCard}>
+              <Ionicons name="calendar-outline" size={24} color={COLORS.primary} />
+              <Text style={styles.summaryValue}>{todaySummary.scheduled}</Text>
               <Text style={styles.summaryLabel}>예약</Text>
             </View>
           </View>

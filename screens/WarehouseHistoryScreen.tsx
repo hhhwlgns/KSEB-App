@@ -20,6 +20,7 @@ import CollapsibleSection from '../components/CollapsibleSection';
 import { COLORS, SIZES } from '../constants';
 import { InOutRecord } from '../types/inout';
 import { fetchInOutData } from '../lib/api';
+import { ORDER_STATUS_CONFIG, type OrderStatus } from '../lib/order-status';
 
 const FILTER_OPTIONS = {
   type: [
@@ -45,7 +46,7 @@ export default function WarehouseHistoryScreen() {
     if (!inOutRecords) return { inbound: 0, outbound: 0 };
     const today = new Date().toISOString().split('T')[0];
     
-    const todayCompletedItems = inOutRecords.filter(item => item.date === today && item.status === '완료');
+    const todayCompletedItems = inOutRecords.filter(item => item.date === today && item.status === 'completed');
 
     return {
       inbound: todayCompletedItems.filter(item => item.type === 'inbound').length,
@@ -102,27 +103,36 @@ export default function WarehouseHistoryScreen() {
     </ScrollView>
   );
 
-  const getStatusStyle = (status: InOutRecord['status']) => {
-    switch (status) {
-      case '완료':
-        return {
-          color: COLORS.statusCompleted,
-          icon: 'checkmark-done-outline',
-          label: '완료',
-        };
-      // 다른 상태가 있다면 여기에 추가
-      default:
-        return {
-          color: COLORS.textMuted,
-          icon: 'help-circle-outline',
-          label: status,
-        };
+  const getStatusStyle = (status: OrderStatus) => {
+    const config = ORDER_STATUS_CONFIG[status];
+    
+    if (!config) {
+      return {
+        color: COLORS.textMuted,
+        icon: 'help-circle-outline',
+        label: '알 수 없음',
+      };
     }
+
+    // 아이콘 매핑
+    const iconMap = {
+      pending: 'time-outline',
+      scheduled: 'calendar-outline', 
+      rejected: 'close-circle-outline',
+      completed: 'checkmark-done-outline',
+      cancelled: 'ban-outline'
+    };
+
+    return {
+      color: config.textColor,
+      icon: iconMap[status] || 'help-circle-outline',
+      label: config.label,
+    };
   };
 
   const renderHistoryItem = ({ item }: { item: InOutRecord }) => {
     const isOutbound = item.type === 'outbound';
-    const statusStyle = getStatusStyle(item.status);
+    const statusStyle = getStatusStyle(item.status as OrderStatus);
 
     return (
       <View style={styles.itemCard}>

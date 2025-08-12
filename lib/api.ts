@@ -105,7 +105,8 @@ export async function deleteItem(id: number): Promise<void> {
 }
 
 // --- InOut ---
-// --- InOut ---
+import { WarehouseItem } from '../types';
+
 export async function getWarehouseCurrent(): Promise<WarehouseItem[]> {
   const response = await apiClient.get('/api/inout/orders');
   const allData: any[] = await handleResponse(response);
@@ -124,7 +125,7 @@ export async function getWarehouseCurrent(): Promise<WarehouseItem[]> {
       location: 'A-01', // Default or placeholder location
       companyName: order.companyName || 'N/A',
       companyCode: order.companyCode || 'N/A',
-      status: order.status === 'PENDING' ? 'pending' : 'in_progress',
+      status: order.status,
       dateTime: order.expectedDate || order.createdAt,
     }))
   );
@@ -173,15 +174,8 @@ export async function createInboundOrder(orderData: { itemId: number; quantity: 
   const response = await apiClient.post('/api/inout/orders', requestData);
   const result = await handleResponse(response);
   
-  if (result.orderId) {
-    try {
-      await apiClient.put(`/api/inout/orders/${result.orderId}/status`, {
-        status: 'COMPLETED'
-      });
-    } catch (error) {
-      console.warn('Failed to auto-approve inbound order:', error);
-    }
-  }
+  // 새로운 상태 시스템: 등록 시 pending(대기중) 상태로 유지
+  // 관리자가 웹에서 승인/거절 처리
   
   return result;
 }
@@ -245,28 +239,29 @@ export async function fetchInventoryData(): Promise<InventoryItem[]> {
     return [];
   }
   
-  const [items, inOutData] = await Promise.all([
+  const [items, inOutData, pendingOrders] = await Promise.all([
     fetchItems(),
-    fetchInOutData()
+    fetchInOutData(),
+    getWarehouseCurrent()
   ]);
   
   const transformedData: InventoryItem[] = backendData.map((backendItem, index) => {
     const item = items.find(i => i.itemId === backendItem.itemId);
     
-    // Calculate scheduled quantities from pending/in-progress inout data
-    const inboundScheduled = inOutData
+    // Calculate scheduled quantities from pending/in-progress orders
+    const inboundScheduled = pendingOrders
       .filter(record => 
         record.type === 'inbound' && 
         record.sku === item?.itemCode &&
-        (record.status === '예약' || record.status === '진행 중')
+        (record.status === 'pending' || record.status === 'in_progress')
       )
       .reduce((sum, record) => sum + record.quantity, 0);
     
-    const outboundScheduled = inOutData
+    const outboundScheduled = pendingOrders
       .filter(record => 
         record.type === 'outbound' && 
         record.sku === item?.itemCode &&
-        (record.status === '예약' || record.status === '진행 중')
+        (record.status === 'pending' || record.status === 'in_progress')
       )
       .reduce((sum, record) => sum + record.quantity, 0);
     
