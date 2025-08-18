@@ -4,11 +4,11 @@
     "slug": "KSEB-Mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/page-logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/page-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -16,19 +16,20 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.kseb.mobile",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/page-logo.png"
       },
       "edgeToEdgeEnabled": true
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/page-logo.png"
     },
     "extra": {
       "eas": {
         "projectId": "66a6b6cb-2d13-4348-837e-803d5441b430"
       }
-    }
+    },
+    "owner": "jihoon2"
   }
 }

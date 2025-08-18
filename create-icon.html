@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create KSEB Icon</title>
+</head>
+<body>
+    <canvas id="canvas" width="1024" height="1024"></canvas>
+    <br>
+    <button onclick="downloadIcon()">Download Icon</button>
+    
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Clear canvas with transparent background
+        ctx.clearRect(0, 0, 1024, 1024);
+        
+        // Draw white box icon in center
+        const size = 400; // Icon size
+        const x = (1024 - size) / 2; // Center X
+        const y = (1024 - size) / 2; // Center Y
+        
+        // White rounded rectangle
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.roundRect(x, y, size, size, 40);
+        ctx.fill();
+        
+        // Inner box outline
+        const innerSize = size * 0.6;
+        const innerX = x + (size - innerSize) / 2;
+        const innerY = y + (size - innerSize) / 2;
+        
+        ctx.strokeStyle = '#666666';
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.roundRect(innerX, innerY, innerSize, innerSize, 20);
+        ctx.stroke();
+        
+        // 3D effect lines
+        ctx.strokeStyle = '#888888';
+        ctx.lineWidth = 4;
+        
+        // Top edge
+        ctx.beginPath();
+        ctx.moveTo(innerX + 20, innerY + 20);
+        ctx.lineTo(innerX + innerSize - 20, innerY + 20);
+        ctx.stroke();
+        
+        // Left edge
+        ctx.beginPath();
+        ctx.moveTo(innerX + 20, innerY + 20);
+        ctx.lineTo(innerX + 20, innerY + innerSize - 20);
+        ctx.stroke();
+        
+        function downloadIcon() {
+            const link = document.createElement('a');
+            link.download = 'adaptive-icon.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+    </script>
+</body>
+</html>
