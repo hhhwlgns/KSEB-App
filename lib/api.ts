@@ -7,7 +7,7 @@ import { Item } from '../types/item';
 import { InOutRecord } from '../types/inout';
 
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8080',
+  baseURL: 'https://smart-wms-be.p-e.kr',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -122,7 +122,7 @@ export async function getWarehouseCurrent(): Promise<WarehouseItem[]> {
       individualCode: `ORDER-${order.orderId}-${item.itemId}`,
       specification: item.specification || 'N/A',
       quantity: item.requestedQuantity || 0,
-      location: 'A-01', // Default or placeholder location
+      location: order.locationCode || '미지정', // 하드코딩된 값을 실제 서버 데이터로 변경
       companyName: order.companyName || 'N/A',
       companyCode: order.companyCode || 'N/A',
       status: order.status,
@@ -156,9 +156,10 @@ export async function fetchInOutData(): Promise<InOutRecord[]> {
   // 웹과 동일하게 모든 데이터를 가져온 후 필터링은 화면에서
   return allData.flatMap(record => 
     record.items.map((item, itemIndex) => {
-      const dateTime = record.createdAt || record.updatedAt || new Date().toISOString();
-      const date = dateTime.split('T')[0];
-      const time = dateTime.split('T')[1]?.substring(0, 8) || '00:00:00';
+      const dateTimeString = record.createdAt || record.updatedAt || new Date().toISOString();
+      const localDate = new Date(dateTimeString);
+      const date = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
+      const time = `${String(localDate.getHours()).padStart(2, '0')}:${String(localDate.getMinutes()).padStart(2, '0')}:${String(localDate.getSeconds()).padStart(2, '0')}`;
       
       return {
         id: `${record.orderId}-${itemIndex}`,
@@ -168,7 +169,7 @@ export async function fetchInOutData(): Promise<InOutRecord[]> {
         individualCode: `ORDER-${record.orderId}-${item.itemId}`,
         specification: item.specification || 'N/A',
         quantity: item.requestedQuantity || 0,
-        location: 'A-01',
+        location: record.locationCode || '미지정',
         company: record.companyName || 'N/A',
         companyCode: record.companyCode || 'N/A',
         status: transformStatus(record.status),
@@ -185,30 +186,31 @@ export interface InOutOrderRequest {
   type: 'INBOUND' | 'OUTBOUND';
   companyId: number;
   expectedDate: string; // ISO format YYYY-MM-DD
+  location?: string; // 위치 정보를 최상단으로 이동
   items: { itemId: number; quantity: number; }[];
 }
 
-export async function createInboundOrder(orderData: { itemId: number; quantity: number; companyId?: number; expectedDate?: string; }): Promise<any> {
-  const requestData: InOutOrderRequest = {
+export async function createInboundOrder(orderData: { itemId: number; quantity: number; companyId?: number; expectedDate?: string; location?: string; }): Promise<any> {
+  const requestData: any = {
     type: 'INBOUND',
     companyId: orderData.companyId || 1,
     expectedDate: orderData.expectedDate || new Date().toISOString().split('T')[0],
-    items: [{ itemId: orderData.itemId, quantity: orderData.quantity }]
+    locationCode: orderData.location, // Use locationCode
+    items: [{ 
+      itemId: orderData.itemId, 
+      quantity: orderData.quantity,
+    }]
   };
   const response = await apiClient.post('/api/inout/orders', requestData);
-  const result = await handleResponse(response);
-  
-  // 새로운 상태 시스템: 등록 시 pending(대기중) 상태로 유지
-  // 관리자가 웹에서 승인/거절 처리
-  
-  return result;
+  return handleResponse(response);
 }
 
-export async function createOutboundOrder(orderData: { itemId: number; quantity: number; companyId?: number; expectedDate?: string; }): Promise<any> {
-  const requestData: InOutOrderRequest = {
+export async function createOutboundOrder(orderData: { itemId: number; quantity: number; companyId?: number; expectedDate?: string; location?: string; }): Promise<any> {
+  const requestData: any = {
     type: 'OUTBOUND',
     companyId: orderData.companyId || 1,
     expectedDate: orderData.expectedDate || new Date().toISOString().split('T')[0],
+    locationCode: orderData.location, // Add locationCode for outbound
     items: [{ itemId: orderData.itemId, quantity: orderData.quantity }]
   };
   const response = await apiClient.post('/api/inout/orders', requestData);

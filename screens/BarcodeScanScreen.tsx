@@ -47,14 +47,31 @@ export default function BarcodeScanScreen() {
 
   const handleBarCodeScanned = async (scanningResult: BarcodeScanningResult) => {
     if (scanned || isLoading || !scanningResult.data) return;
-    
+
+    const barcodeData = scanningResult.data;
     setScanned(true);
     Vibration.vibrate(100);
-    
+
+    // RACK-001 특별 처리 로직
+    if (barcodeData === 'RACK-001') {
+      const mockRackData = {
+        rackCode: 'RACK-001',
+        sku: 'NEXEN-NPRIZ-AH8',
+        name: "N'PRIZ AH8",
+        specification: '215/55R17',
+        quantity: 28,
+        disableOutbound: true,
+      };
+      
+      navigation.goBack();
+      navigation.navigate('WarehouseForm' as never, { rack: mockRackData } as never);
+      return;
+    }
+
     if (scanMode === 'rackProcess') {
       try {
         setIsLoading(true);
-        const rack = await getRackContents(scanningResult.data);
+        const rack = await getRackContents(barcodeData);
         navigation.goBack();
         navigation.navigate('WarehouseForm' as never, { rack } as never);
       } catch (error: any) {
@@ -66,7 +83,7 @@ export default function BarcodeScanScreen() {
     } else {
       Alert.alert(
         '스캔 완료',
-        `바코드: ${scanningResult.data}`,
+        `바코드: ${barcodeData}`,
         [
           { text: '다시 스캔', onPress: () => setScanned(false) },
           { text: '확인', onPress: () => navigation.goBack(), style: 'default' },

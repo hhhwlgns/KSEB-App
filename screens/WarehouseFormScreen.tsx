@@ -92,21 +92,35 @@ export default function WarehouseFormScreen() {
     queryFn: fetchItems,
   });
 
-  // 바코드 스캔으로 가져온 랙 정보로 품목 자동 선택
+  // 바코드 스캔으로 가져온 랙 정보로 자동 설정
   useEffect(() => {
     if (rack && items) {
-      // SKU 기준으로 품목 찾기
+      // SKU 기준으로 품목 찾기 (itemCode가 SKU와 같다고 가정)
       const matchingItem = items.find(item => item.itemCode === rack.sku);
       if (matchingItem) {
         setSelectedItem(matchingItem);
       }
       
-      // 위치 정보 설정
-      if (rack.location) {
+      // 수량 설정
+      if (rack.quantity) {
+        setQuantity(rack.quantity.toString());
+      }
+
+      // RACK-001 특별 케이스: 입고로 고정하고 출고 비활성화
+      if (rack.disableOutbound) {
+        setType('INBOUND');
+        // 입고 처리이므로, 기존 위치를 보여주되 새로 선택할 수 있도록
+        // 위치 필드를 자동으로 채우지 않음.
+        setSelectedArea('');
+        setSelectedNumber('');
+      } else if (rack.location) {
+        // 일반 랙 스캔 시에는 기존 위치를 표시
         const areaMatch = rack.location.match(/^([A-T])(\d+)$/);
         if (areaMatch) {
-          setSelectedArea(areaMatch[1]);
-          setSelectedNumber(areaMatch[2]);
+          const area = areaMatch[1];
+          const number = parseInt(areaMatch[2], 10).toString();
+          setSelectedArea(area);
+          setSelectedNumber(number);
         }
       }
     }
@@ -116,7 +130,7 @@ export default function WarehouseFormScreen() {
   const numbers = generateNumbers();
 
   const createOrderMutation = useMutation({
-    mutationFn: (data: { itemId: number; quantity: number; companyId?: number; expectedDate?: string; }) => {
+    mutationFn: (data: { itemId: number; quantity: number; companyId?: number; expectedDate?: string; location?: string; }) => {
       if (type === 'INBOUND') {
         return createInboundOrder(data);
       } else {
@@ -139,15 +153,34 @@ export default function WarehouseFormScreen() {
 
   const validateForm = (): boolean => {
     const newErrors: { company?: string; item?: string; quantity?: string; date?: string; location?: string } = {};
+    
     if (!selectedCompany) newErrors.company = '거래처를 선택해주세요.';
-    if (!selectedItem) newErrors.item = '품목을 선택해주세요.';
-    if (!quantity.trim() || isNaN(Number(quantity)) || Number(quantity) <= 0) {
-      newErrors.quantity = '올바른 수량을 입력해주세요.';
-    }
+    if (!location) newErrors.location = '입고 구역을 선택해주세요.';
     if (!expectedDate) newErrors.date = '예정일을 선택해주세요.';
-    if (!location) newErrors.location = '구역을 선택해주세요.';
+
+    // 바코드 스캔 모드가 아닐 때만 품목과 수량을 검사
+    if (!isFromRackScan) {
+      if (!selectedItem) newErrors.item = '품목을 선택해주세요.';
+      if (!quantity.trim() || isNaN(Number(quantity)) || Number(quantity) <= 0) {
+        newErrors.quantity = '올바른 수량을 입력해주세요.';
+      }
+    } else {
+      // 바코드 스캔 모드일 때는 selectedItem이 제대로 설정되었는지 확인
+      if (!selectedItem) {
+        newErrors.item = '스캔된 품목의 정보를 찾을 수 없습니다. 관리자에게 문의하세요.';
+      }
+    }
+
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    
+    if (Object.keys(newErrors).length > 0) {
+      // 오류 메시지를 조합하여 한 번에 보여줌
+      const errorMessage = Object.values(newErrors).join('\n');
+      Alert.alert('입력 오류', errorMessage);
+      return false;
+    }
+    
+    return true;
   };
 
   const showDatePickerModal = () => {
@@ -165,8 +198,8 @@ export default function WarehouseFormScreen() {
   };
 
   const handleSubmit = () => {
+    // validateForm 함수가 Alert를 직접 호출하므로, 여기서 추가 Alert는 필요 없음
     if (!validateForm()) {
-      Alert.alert('입력 오류', '필수 입력 항목을 확인해주세요.');
       return;
     }
 
@@ -175,6 +208,7 @@ export default function WarehouseFormScreen() {
       quantity: Number(quantity),
       companyId: selectedCompany!.companyId,
       expectedDate: expectedDate.toISOString().split('T')[0],
+      location: location, // 선택된 위치 정보 추가
     };
     createOrderMutation.mutate(orderData);
   };
@@ -187,26 +221,18 @@ export default function WarehouseFormScreen() {
     
     return (
       <View style={styles.rackInfoContainer}>
-        <Text style={styles.label}>스캔된 랙 정보</Text>
+        <Text style={styles.label}>스캔된 정보</Text>
         <View style={styles.rackCard}>
           <View style={styles.rackHeader}>
-            <Text style={styles.rackId}>랙 ID: {rack.id}</Text>
-            <TouchableOpacity 
-              style={styles.rescanButton} 
-              onPress={() => navigation.navigate('BarcodeScreen' as never, {
-                title: '랙 바코드 스캔',
-                scanMode: 'rackProcess'
-              } as never)}
-            >
-              <Text style={styles.rescanButtonText}>다시 스캔</Text>
-            </TouchableOpacity>
+            <Text style={styles.rackId}>바코드: {rack.id || rack.rackCode}</Text>
+            {/* 다시 스캔 버튼 제거 */}
           </View>
           <View style={styles.rackDetails}>
             <Text style={styles.rackName}>{rack.name}</Text>
             <Text style={styles.rackSku}>SKU: {rack.sku}</Text>
             <Text style={styles.rackSpec}>규격: {rack.specification}</Text>
-            <Text style={styles.rackLocation}>위치: {rack.location}</Text>
-            <Text style={styles.rackQuantity}>재고: {rack.quantity}개</Text>
+            <Text style={styles.rackQuantity}>수량: {rack.quantity}개</Text>
+            {rack.location && <Text style={styles.rackLocation}>현재 위치: {rack.location}</Text>}
           </View>
         </View>
       </View>
@@ -217,6 +243,8 @@ export default function WarehouseFormScreen() {
     return <SafeAreaView style={styles.container}><LoadingSpinner /></SafeAreaView>;
   }
 
+  const isFromRackScan = !!rack;
+
   return (
     <SafeAreaView style={styles.container}>
       <Header title="입출고 요청 등록" showBack />
@@ -226,43 +254,62 @@ export default function WarehouseFormScreen() {
             <View style={styles.inputContainer}>
               <Text style={styles.label}>작업 유형 *</Text>
               <View style={styles.typeSelector}>
-                <TouchableOpacity style={[styles.typeButton, type === 'INBOUND' && styles.typeButtonActive]} onPress={() => setType('INBOUND')}>
+                <TouchableOpacity 
+                  style={[styles.typeButton, type === 'INBOUND' && styles.typeButtonActive]} 
+                  onPress={() => setType('INBOUND')}
+                  disabled={isFromRackScan && rack.disableOutbound}
+                >
                   <Text style={[styles.typeButtonText, type === 'INBOUND' && styles.typeButtonTextActive]}>입고</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.typeButton, type === 'OUTBOUND' && styles.typeButtonActive]} onPress={() => setType('OUTBOUND')}>
-                  <Text style={[styles.typeButtonText, type === 'OUTBOUND' && styles.typeButtonTextActive]}>출고</Text>
+                <TouchableOpacity 
+                  style={[
+                    styles.typeButton, 
+                    type === 'OUTBOUND' && styles.typeButtonActive,
+                    (isFromRackScan && rack.disableOutbound) && styles.typeButtonDisabled
+                  ]} 
+                  onPress={() => setType('OUTBOUND')}
+                  disabled={isFromRackScan && rack.disableOutbound}
+                >
+                  <Text style={[
+                    styles.typeButtonText, 
+                    type === 'OUTBOUND' && styles.typeButtonTextActive,
+                    (isFromRackScan && rack.disableOutbound) && styles.typeButtonTextDisabled
+                  ]}>출고</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* 바코드 스캔된 랙 정보 표시 */}
             {renderRackInfo()}
 
-            <CustomDropdown
-              label="품목 *"
-              data={items || []}
-              value={selectedItem}
-              onSelect={(item) => setSelectedItem(item as Item)}
-              placeholder="품목을 선택하세요"
-              displayKey="itemName"
-              searchable={true}
-            />
+            {!isFromRackScan && (
+              <>
+                <CustomDropdown
+                  label="품목 *"
+                  data={items || []}
+                  value={selectedItem}
+                  onSelect={(item) => setSelectedItem(item as Item)}
+                  placeholder="품목을 선택하세요"
+                  displayKey="itemName"
+                  searchable={true}
+                />
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>수량 *</Text>
-              <TextInput
-                style={[styles.input, errors.quantity && styles.inputError]}
-                placeholder="수량을 입력하세요"
-                placeholderTextColor={COLORS.textMuted}
-                value={quantity}
-                onChangeText={(text) => {
-                  setQuantity(text.replace(/[^0-9]/g, ''));
-                  if (errors.quantity) setErrors(prev => ({ ...prev, quantity: undefined }));
-                }}
-                keyboardType="numeric"
-              />
-              {errors.quantity && <Text style={styles.errorText}>{errors.quantity}</Text>}
-            </View>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>수량 *</Text>
+                  <TextInput
+                    style={[styles.input, errors.quantity && styles.inputError]}
+                    placeholder="수량을 입력하세요"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={quantity}
+                    onChangeText={(text) => {
+                      setQuantity(text.replace(/[^0-9]/g, ''));
+                      if (errors.quantity) setErrors(prev => ({ ...prev, quantity: undefined }));
+                    }}
+                    keyboardType="numeric"
+                  />
+                  {errors.quantity && <Text style={styles.errorText}>{errors.quantity}</Text>}
+                </View>
+              </>
+            )}
             
             <CustomDropdown
               label="거래처 *"
@@ -275,7 +322,7 @@ export default function WarehouseFormScreen() {
             />
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>구역 선택 *</Text>
+              <Text style={styles.label}>입고 구역 선택 *</Text>
               <View style={styles.locationContainer}>
                 <View style={styles.locationItem}>
                   <Text style={styles.locationSubLabel}>구역</Text>
@@ -357,6 +404,7 @@ const styles = StyleSheet.create({
   inputContainer: { marginBottom: SIZES.lg },
   label: { fontSize: SIZES.fontSM, fontWeight: '600', color: COLORS.textPrimary, marginBottom: SIZES.sm },
   input: { height: SIZES.inputHeight, borderWidth: 1, borderColor: COLORS.border, borderRadius: SIZES.radiusMD, paddingHorizontal: SIZES.md, fontSize: SIZES.fontMD, backgroundColor: COLORS.surface, color: COLORS.textPrimary, justifyContent: 'center' },
+  inputDisabled: { backgroundColor: COLORS.surfaceHover, color: COLORS.textMuted },
   dateTimeContainer: { flexDirection: 'row', gap: SIZES.sm },
   dateInput: { flex: 2, justifyContent: 'center', alignItems: 'center' },
   timeInput: { flex: 1, textAlign: 'center' },
@@ -367,8 +415,10 @@ const styles = StyleSheet.create({
   typeSelector: { flexDirection: 'row', gap: SIZES.md },
   typeButton: { flex: 1, height: SIZES.inputHeight, borderRadius: SIZES.radiusMD, borderWidth: 1, borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.surface },
   typeButtonActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  typeButtonDisabled: { backgroundColor: COLORS.surfaceHover, borderColor: COLORS.border },
   typeButtonText: { fontSize: SIZES.fontMD, fontWeight: '600', color: COLORS.textSecondary },
   typeButtonTextActive: { color: 'white' },
+  typeButtonTextDisabled: { color: COLORS.textMuted },
   footer: { flexDirection: 'row', padding: SIZES.lg, backgroundColor: COLORS.surface, borderTopWidth: 1, borderTopColor: COLORS.border, gap: SIZES.md },
   cancelButton: { flex: 1, height: SIZES.buttonHeight, borderWidth: 1, borderColor: COLORS.border, borderRadius: SIZES.radiusMD, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.surface },
   cancelButtonText: { fontSize: SIZES.fontMD, fontWeight: '600', color: COLORS.textSecondary },
@@ -428,11 +478,13 @@ const styles = StyleSheet.create({
   rackLocation: {
     fontSize: SIZES.fontSM,
     color: COLORS.textSecondary,
+    marginTop: SIZES.sm,
+    fontStyle: 'italic',
   },
   rackQuantity: {
     fontSize: SIZES.fontMD,
     fontWeight: 'bold',
-    color: COLORS.success,
+    color: COLORS.textPrimary,
   },
   locationContainer: {
     flexDirection: 'row',
