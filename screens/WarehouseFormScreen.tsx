@@ -22,7 +22,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { COLORS, SIZES } from '../constants';
 import { Company } from '../types/company';
 import { Item } from '../types/item';
-import { createInboundOrder, createOutboundOrder, fetchCompanies, fetchItems, RackInfo } from '../lib/api';
+import { createInboundOrder, createOutboundOrder, fetchCompanies, fetchItems, RackInfo, fetchInOutData } from '../lib/api';
 
 // 구역 생성 함수 (A~T)
 const generateAreas = () => {
@@ -72,6 +72,7 @@ export default function WarehouseFormScreen() {
   const [location, setLocation] = useState<string>(''); // 조합된 구역 (예: G010)
   const [rack, setRack] = useState<RackInfo | null>(route.params?.rack || null); // 바코드 스캔된 랙 정보
   const [errors, setErrors] = useState<{ company?: string; item?: string; quantity?: string; date?: string; location?: string }>({});
+  const [availableLocations, setAvailableLocations] = useState<Array<{ locationCode: string; quantity: number }>>([]);
 
   // 구역과 번호 조합
   useEffect(() => {
@@ -90,6 +91,10 @@ export default function WarehouseFormScreen() {
   const { data: items, isLoading: isLoadingItems } = useQuery({
     queryKey: ['items'],
     queryFn: fetchItems,
+  });
+  const { data: inOutData } = useQuery({
+    queryKey: ['inOutData'],
+    queryFn: fetchInOutData,
   });
 
   // 바코드 스캔으로 가져온 랙 정보로 자동 설정
@@ -126,6 +131,74 @@ export default function WarehouseFormScreen() {
     }
   }, [rack, items]);
 
+  // 출고 시 선택된 품목의 재고 위치 계산 (웹 로직과 동일하게 수정)
+  useEffect(() => {
+    if (type === 'OUTBOUND' && selectedItem && inOutData && items) {
+      // 완료된 입출고 내역만 필터링
+      const completedInOut = inOutData.filter(record => 
+        record.status === 'completed' || record.status === '완료'
+      );
+      
+      // 각 품목별 랙 위치별 재고 계산 (웹과 동일한 구조)
+      const rackItemQuantities: Record<string, Record<number, number>> = {}; // rackCode -> {itemId: quantity}
+      
+      completedInOut.forEach(record => {
+        // 레코드 레벨의 location 사용
+        const locationCode = record.location || '';
+        let rackCode = locationCode.replace('-', '').toUpperCase();
+        
+        // 패딩 처리: J5 → J005
+        if (rackCode.match(/^[A-T]\d{1,2}$/)) {
+          const section = rackCode.charAt(0);
+          const position = rackCode.slice(1).padStart(3, '0');
+          rackCode = `${section}${position}`;
+        }
+        
+        if (!rackCode) return;
+        
+        // 아이템 ID 찾기 (SKU 기반)
+        const item = items.find(i => i.itemCode === record.sku);
+        if (!item) return;
+        
+        if (!rackItemQuantities[rackCode]) {
+          rackItemQuantities[rackCode] = {};
+        }
+        
+        const currentQty = rackItemQuantities[rackCode][item.itemId] || 0;
+        
+        if (record.type === 'inbound') {
+          // 입고: 수량 증가
+          rackItemQuantities[rackCode][item.itemId] = currentQty + record.quantity;
+        } else if (record.type === 'outbound') {
+          // 출고: 수량 감소
+          rackItemQuantities[rackCode][item.itemId] = Math.max(0, currentQty - record.quantity);
+        }
+      });
+      
+      // 선택된 품목의 출고 가능한 재고 목록 생성 (수량이 0보다 큰 것만)
+      const inventoryLocations: Array<{ locationCode: string; quantity: number }> = [];
+      
+      Object.entries(rackItemQuantities).forEach(([rackCode, itemQuantities]) => {
+        const quantity = itemQuantities[selectedItem.itemId] || 0;
+        if (quantity > 0) {
+          inventoryLocations.push({
+            locationCode: rackCode,
+            quantity
+          });
+        }
+      });
+      
+      setAvailableLocations(inventoryLocations);
+      
+      // 기존 선택된 위치 초기화
+      setSelectedArea('');
+      setSelectedNumber('');
+      setLocation('');
+    } else {
+      setAvailableLocations([]);
+    }
+  }, [type, selectedItem, inOutData, items]);
+
   const areas = generateAreas();
   const numbers = generateNumbers();
 
@@ -141,6 +214,8 @@ export default function WarehouseFormScreen() {
       Alert.alert('성공', '입출고 요청이 성공적으로 등록되었습니다.');
       queryClient.invalidateQueries({ queryKey: ['inOutData'] });
       queryClient.invalidateQueries({ queryKey: ['inOutRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouseCurrent'] });
+      queryClient.invalidateQueries({ queryKey: ['inventoryData'] });
       navigation.goBack();
     },
     onError: (error) => {
@@ -155,7 +230,7 @@ export default function WarehouseFormScreen() {
     const newErrors: { company?: string; item?: string; quantity?: string; date?: string; location?: string } = {};
     
     if (!selectedCompany) newErrors.company = '거래처를 선택해주세요.';
-    if (!location) newErrors.location = '입고 구역을 선택해주세요.';
+    if (!location) newErrors.location = type === 'OUTBOUND' ? '출고 위치를 선택해주세요.' : '입고 구역을 선택해주세요.';
     if (!expectedDate) newErrors.date = '예정일을 선택해주세요.';
 
     // 바코드 스캔 모드가 아닐 때만 품목과 수량을 검사
@@ -293,6 +368,41 @@ export default function WarehouseFormScreen() {
                   searchable={true}
                 />
 
+                {/* 출고 시 위치 선택을 품목 선택 바로 다음에 위치 */}
+                {type === 'OUTBOUND' && (
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.label}>출고 위치 선택 *</Text>
+                    {availableLocations.length > 0 ? (
+                      <CustomDropdown
+                        data={availableLocations.map(loc => ({
+                          label: `${loc.locationCode} (재고: ${loc.quantity}개)`,
+                          value: loc.locationCode
+                        }))}
+                        value={location ? {
+                          label: `${location} (재고: ${availableLocations.find(loc => loc.locationCode === location)?.quantity || 0}개)`,
+                          value: location
+                        } : null}
+                        onSelect={(selected: any) => {
+                          setLocation(selected.value);
+                          if (errors.location) setErrors(prev => ({ ...prev, location: undefined }));
+                        }}
+                        placeholder="재고 위치를 선택하세요"
+                        displayKey="label"
+                        searchable={false}
+                      />
+                    ) : selectedItem ? (
+                      <View style={styles.noStockContainer}>
+                        <Text style={styles.noStockText}>선택한 품목의 재고가 없습니다</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.noStockContainer}>
+                        <Text style={styles.noStockText}>품목을 먼저 선택해주세요</Text>
+                      </View>
+                    )}
+                    {errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
+                  </View>
+                )}
+
                 <View style={styles.inputContainer}>
                   <Text style={styles.label}>수량 *</Text>
                   <TextInput
@@ -321,45 +431,48 @@ export default function WarehouseFormScreen() {
               searchable={true}
             />
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>입고 구역 선택 *</Text>
-              <View style={styles.locationContainer}>
-                <View style={styles.locationItem}>
-                  <Text style={styles.locationSubLabel}>구역</Text>
-                  <CustomDropdown
-                    data={areas}
-                    value={selectedArea ? { label: `${selectedArea}구역`, value: selectedArea } : null}
-                    onSelect={(area: any) => {
-                      setSelectedArea(area.value);
-                      if (errors.location) setErrors(prev => ({ ...prev, location: undefined }));
-                    }}
-                    placeholder="구역"
-                    displayKey="label"
-                    searchable={false}
-                  />
+            {/* 입고 시에만 구역 선택 표시 */}
+            {type === 'INBOUND' && (
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>입고 구역 선택 *</Text>
+                <View style={styles.locationContainer}>
+                  <View style={styles.locationItem}>
+                    <Text style={styles.locationSubLabel}>구역</Text>
+                    <CustomDropdown
+                      data={areas}
+                      value={selectedArea ? { label: `${selectedArea}구역`, value: selectedArea } : null}
+                      onSelect={(area: any) => {
+                        setSelectedArea(area.value);
+                        if (errors.location) setErrors(prev => ({ ...prev, location: undefined }));
+                      }}
+                      placeholder="구역"
+                      displayKey="label"
+                      searchable={false}
+                    />
+                  </View>
+                  <View style={styles.locationItem}>
+                    <Text style={styles.locationSubLabel}>번호</Text>
+                    <CustomDropdown
+                      data={numbers}
+                      value={selectedNumber ? { label: `${selectedNumber}번`, value: selectedNumber } : null}
+                      onSelect={(number: any) => {
+                        setSelectedNumber(number.value);
+                        if (errors.location) setErrors(prev => ({ ...prev, location: undefined }));
+                      }}
+                      placeholder="번호"
+                      displayKey="label"
+                      searchable={false}
+                    />
+                  </View>
                 </View>
-                <View style={styles.locationItem}>
-                  <Text style={styles.locationSubLabel}>번호</Text>
-                  <CustomDropdown
-                    data={numbers}
-                    value={selectedNumber ? { label: `${selectedNumber}번`, value: selectedNumber } : null}
-                    onSelect={(number: any) => {
-                      setSelectedNumber(number.value);
-                      if (errors.location) setErrors(prev => ({ ...prev, location: undefined }));
-                    }}
-                    placeholder="번호"
-                    displayKey="label"
-                    searchable={false}
-                  />
-                </View>
+                {location && (
+                  <View style={styles.locationPreview}>
+                    <Text style={styles.locationPreviewText}>선택된 구역: {location}</Text>
+                  </View>
+                )}
+                {errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
               </View>
-              {location && (
-                <View style={styles.locationPreview}>
-                  <Text style={styles.locationPreviewText}>선택된 구역: {location}</Text>
-                </View>
-              )}
-              {errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
-            </View>
+            )}
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>예정일 *</Text>
@@ -512,5 +625,18 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  noStockContainer: {
+    padding: SIZES.md,
+    backgroundColor: COLORS.surfaceHover,
+    borderRadius: SIZES.radiusMD,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  noStockText: {
+    fontSize: SIZES.fontSM,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

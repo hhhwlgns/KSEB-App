@@ -210,23 +210,15 @@ export async function createOutboundOrder(orderData: { itemId: number; quantity:
     type: 'OUTBOUND',
     companyId: orderData.companyId || 1,
     expectedDate: orderData.expectedDate || new Date().toISOString().split('T')[0],
-    locationCode: orderData.location, // Add locationCode for outbound
-    items: [{ itemId: orderData.itemId, quantity: orderData.quantity }]
+    locationCode: orderData.location, // 주문 레벨의 위치
+    items: [{ 
+      itemId: orderData.itemId, 
+      quantity: orderData.quantity,
+      locationCode: orderData.location // 각 품목별 위치 정보 포함 (웹과 동일)
+    }]
   };
   const response = await apiClient.post('/api/inout/orders', requestData);
-  const result = await handleResponse(response);
-  
-  if (result.orderId) {
-    try {
-      await apiClient.put(`/api/inout/orders/${result.orderId}/status`, {
-        status: 'COMPLETED'
-      });
-    } catch (error) {
-      console.warn('Failed to auto-approve outbound order:', error);
-    }
-  }
-  
-  return result;
+  return handleResponse(response);
 }
 
 export async function updateInOutRecord(id: number, status: 'COMPLETED' | 'CANCELLED'): Promise<any> {
@@ -274,12 +266,12 @@ export async function fetchInventoryData(): Promise<InventoryItem[]> {
   const transformedData: InventoryItem[] = backendData.map((backendItem, index) => {
     const item = items.find(i => i.itemId === backendItem.itemId);
     
-    // Calculate scheduled quantities from pending/in-progress orders
+    // Calculate scheduled quantities from scheduled orders only
     const inboundScheduled = pendingOrders
       .filter(record => 
         record.type === 'inbound' && 
         record.sku === item?.itemCode &&
-        (record.status === 'pending' || record.status === 'in_progress')
+        record.status === 'scheduled'
       )
       .reduce((sum, record) => sum + record.quantity, 0);
     
@@ -287,7 +279,7 @@ export async function fetchInventoryData(): Promise<InventoryItem[]> {
       .filter(record => 
         record.type === 'outbound' && 
         record.sku === item?.itemCode &&
-        (record.status === 'pending' || record.status === 'in_progress')
+        record.status === 'scheduled'
       )
       .reduce((sum, record) => sum + record.quantity, 0);
     
