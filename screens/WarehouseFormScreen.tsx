@@ -24,7 +24,6 @@ import { Company } from '../types/company';
 import { Item } from '../types/item';
 import { createInboundOrder, createOutboundOrder, fetchCompanies, fetchItems, RackInfo, fetchInOutData } from '../lib/api';
 
-// 구역 생성 함수 (A~T)
 const generateAreas = () => {
   const areas = [];
   for (let letter = 'A'.charCodeAt(0); letter <= 'T'.charCodeAt(0); letter++) {
@@ -34,7 +33,6 @@ const generateAreas = () => {
   return areas;
 };
 
-// 번호 생성 함수 (1~12번)
 const generateNumbers = () => {
   const numbers = [];
   for (let number = 1; number <= 12; number++) {
@@ -147,7 +145,6 @@ export default function WarehouseFormScreen() {
         const locationCode = record.location || '';
         let rackCode = locationCode.replace('-', '').toUpperCase();
         
-        // 패딩 처리: J5 → J005
         if (rackCode.match(/^[A-T]\d{1,2}$/)) {
           const section = rackCode.charAt(0);
           const position = rackCode.slice(1).padStart(3, '0');
@@ -219,7 +216,6 @@ export default function WarehouseFormScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      console.error("Order creation failed:", error);
       Alert.alert('오류', error.message || '요청 등록 중 오류가 발생했습니다.');
     },
   });

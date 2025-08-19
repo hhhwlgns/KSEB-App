@@ -253,7 +253,6 @@ export async function fetchInventoryData(): Promise<InventoryItem[]> {
   const backendData: BackendInventoryResponse[] = await handleResponse(response);
   
   if (!backendData || backendData.length === 0) {
-    console.log('No inventory data found in backend');
     return [];
   }
   
@@ -380,7 +379,6 @@ export async function getRackContents(barcode: string): Promise<RackInfo> {
     return handleResponse(response);
   } catch (error) {
     // 백엔드에 해당 API가 없을 경우 목업 데이터 반환
-    console.warn('랙 정보 API 호출 실패, 목업 데이터 사용:', error);
     
     // 목업 데이터 (실제 구현에서는 제거)
     return {

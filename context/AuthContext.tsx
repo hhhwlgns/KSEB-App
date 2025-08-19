@@ -28,7 +28,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setUser(null);
         }
       } catch (error) {
-        console.log("No active session found", error);
         setUser(null);
       }
       setIsLoading(false);
@@ -45,7 +44,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       setUser(user);
     } catch (error) {
-      console.error("Login failed:", error);
       throw new Error("로그인에 실패했습니다. 아이디와 비밀번호를 확인해주세요.");
     }
   };
@@ -54,7 +52,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       await api.logout();
     } catch (error) {
-      console.error("Logout failed:", error);
     } finally {
       await AsyncStorage.removeItem('authToken');
       setUser(null);

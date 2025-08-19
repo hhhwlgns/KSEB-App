@@ -43,7 +43,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setAuthToken(storedToken); // API 클라이언트 헤더 설정
         }
       } catch (error) {
-        console.error('Failed to load auth data from storage', error);
         // 이전 데이터 클리어
         await AsyncStorage.clear();
       } finally {
@@ -66,7 +65,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(userData);
       setAuthToken(authToken); // API 클라이언트 헤더 설정
     } catch (error) {
-      console.error('Login failed:', error);
       // 에러를 다시 던져서 로그인 화면에서 처리할 수 있도록 함
       throw error;
     } finally {
@@ -84,7 +82,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(null);
       setAuthToken(null); // API 클라이언트 헤더에서 토큰 제거
     } catch (error) {
-      console.error('Logout failed:', error);
     } finally {
       setIsLoading(false);
     }

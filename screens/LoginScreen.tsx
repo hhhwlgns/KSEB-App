@@ -51,7 +51,6 @@ export default function LoginScreen() {
       await login(username, password);
       // toast.success('로그인 성공!'); // SVG 에러로 인해 임시 주석 처리
     } catch (error) {
-      console.error('Login failed:', error);
       Alert.alert(
         '로그인 실패',
         '아이디 또는 비밀번호를 확인해주세요.',

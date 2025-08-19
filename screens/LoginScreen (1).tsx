@@ -51,7 +51,6 @@ export default function LoginScreen() {
       await login(email, password);
       toast.success('로그인 성공!');
     } catch (error) {
-      console.error('Login failed:', error);
       Alert.alert(
         '로그인 실패',
         '아이디 또는 비밀번호를 확인해주세요.',

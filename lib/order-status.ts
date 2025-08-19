@@ -51,11 +51,11 @@ export const ORDER_STATUS_CONFIG: Record<OrderStatus, StatusConfig> = {
 
 // 상태 전환 가능한 경우들
 export const STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  pending: ['scheduled', 'rejected'],      // 대기중 → 예약 or 거절
-  scheduled: ['completed', 'cancelled'],   // 예약 → 완료 or 취소
-  rejected: [],                            // 거절 → 변경 불가 (최종 상태)
-  completed: [],                           // 완료 → 변경 불가 (최종 상태)
-  cancelled: []                            // 취소 → 변경 불가 (최종 상태)
+  pending: ['scheduled', 'rejected'],
+  scheduled: ['completed', 'cancelled'],
+  rejected: [],
+  completed: [],
+  cancelled: []
 };
 
 // 상태 전환 가능 여부 확인
@@ -110,7 +110,6 @@ export const isFinalStatus = (status: OrderStatus): boolean => {
 };
 
 
-// 상태 변경 로그 메시지 생성
 export const getStatusChangeMessage = (
   fromStatus: OrderStatus, 
   toStatus: OrderStatus,
